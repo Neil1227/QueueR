@@ -102,21 +102,21 @@ export function BankPickerModal({
 
         {/* Search Bar */}
         <div className="px-5 py-3 border-b border-line/60 bg-surface/50">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+          <div className="flex items-center bg-surface border border-line/80 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 rounded-xl px-3 py-2 transition-all gap-2.5 shadow-sm">
+            <Search className="w-4 h-4 text-muted shrink-0" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search bank name (e.g. MariBank, GCash, Maya, BPI, BDO)..."
-              className="w-full bg-surface border border-line/80 focus:border-accent rounded-xl pl-10 pr-9 py-2.5 text-sm text-text outline-none transition-all"
+              className="w-full bg-transparent text-sm text-text outline-none p-0 placeholder:text-muted/60"
               autoFocus
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text"
+                className="text-muted hover:text-text shrink-0 p-0.5"
               >
                 <X className="w-4 h-4" />
               </button>

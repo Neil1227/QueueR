@@ -337,9 +337,9 @@ export function EditorSheet({
               </button>
             </div>
 
-            <div className="relative flex items-center">
-              <div className="absolute left-3.5 pointer-events-none">
-                <BankLogo provider={provider} customLogo={logoB64} color={color} size={24} />
+            <div className="flex items-center bg-surface border border-line/60 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 rounded-2xl px-3.5 py-3 shadow-sm transition-all gap-3">
+              <div className="shrink-0 flex items-center justify-center">
+                <BankLogo provider={provider} customLogo={logoB64} color={color} size={26} />
               </div>
               <input
                 id="fProv"
@@ -356,16 +356,16 @@ export function EditorSheet({
                   }
                 }}
                 placeholder="e.g. GCash, Maya, MariBank, SeaBank, BPI, BDO"
-                className="w-full bg-surface border border-line/60 focus:border-accent rounded-2xl pl-11 pr-4 py-3.5 text-base text-text outline-none transition-all shadow-sm"
+                className="w-full bg-transparent text-base text-text outline-none p-0 placeholder:text-muted/60"
               />
             </div>
 
             {/* Smart Bank Detection Indicator */}
             {detectedBrand && (
               <div className="mt-2 p-2.5 rounded-xl bg-surface/70 border border-line/50 flex items-center justify-between text-xs animate-fade-in">
-                <div className="flex items-center gap-2 min-w-0 pr-2">
-                  <BankLogo provider={detectedBrand.name} color={detectedBrand.color} size={20} />
-                  <div className="truncate">
+                <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                  <BankLogo provider={detectedBrand.name} color={detectedBrand.color} size={20} className="shrink-0" />
+                  <div className="truncate flex-1">
                     <span className="font-semibold text-text">{detectedBrand.name}</span>
                     <span className="text-muted ml-1.5 font-normal">({getCategoryLabel(detectedBrand.category)})</span>
                   </div>
