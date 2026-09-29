@@ -78,14 +78,14 @@ export function Card({
           background: gradient,
           color: fg,
         }}
-        className={`group relative block w-full h-[215px] rounded-[24px] p-0 m-0 text-left select-none overflow-hidden cursor-pointer focus-visible:ring-3 focus-visible:ring-accent focus-visible:ring-offset-2 transition-all duration-300 ${
+        className={`group relative block w-full h-[210px] rounded-[22px] p-0 m-0 text-left select-none overflow-hidden cursor-pointer focus-visible:ring-3 focus-visible:ring-accent focus-visible:ring-offset-2 transition-all duration-300 ${
           isFront
             ? 'shadow-[0_22px_45px_-10px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.22)_inset,0_2px_8px_rgba(0,0,0,0.18)] active:scale-[0.99]'
             : 'shadow-[0_-1px_0_rgba(255,255,255,0.2)_inset,0_10px_24px_-4px_rgba(0,0,0,0.28),0_2px_6px_rgba(0,0,0,0.12)] hover:brightness-105 active:scale-[0.99]'
         }`}
       >
         {/* Tactile Ambient Card Sheen & Specular Highlights */}
-        <div className="absolute inset-0 bg-gradient-to-tr from-black/30 via-transparent to-white/20 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-black/25 via-transparent to-white/20 pointer-events-none" />
         <div className="absolute -right-16 -bottom-16 w-52 h-52 rounded-full bg-white/10 blur-2xl pointer-events-none" />
         <div className="absolute -left-10 -top-10 w-36 h-36 rounded-full bg-white/5 blur-xl pointer-events-none" />
 

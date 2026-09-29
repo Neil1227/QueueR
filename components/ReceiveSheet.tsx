@@ -350,8 +350,8 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
                 }
             }
             className={`px-3.5 py-2 rounded-full font-medium text-sm backdrop-blur-md flex items-center gap-1.5 transition-all active:scale-95 shadow-sm cursor-pointer ${scanMode
-                ? 'bg-[#1D1D1F] text-white border border-transparent'
-                : 'hover:brightness-95'
+              ? 'bg-[#1D1D1F] text-white border border-transparent'
+              : 'hover:brightness-95'
               }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -621,8 +621,8 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
                       type="button"
                       onClick={() => handleFormatChangeInShareModal(fmt)}
                       className={`py-1.5 px-2 rounded-xl text-xs font-semibold capitalize border transition-all cursor-pointer ${shareImageNumberFormat === fmt
-                          ? 'bg-accent text-white border-accent shadow-sm'
-                          : 'bg-bg text-text border-line/30 hover:border-line'
+                        ? 'bg-accent text-white border-accent shadow-sm'
+                        : 'bg-bg text-text border-line/30 hover:border-line'
                         }`}
                     >
                       {fmt === 'last4' ? 'Last 4' : fmt}
