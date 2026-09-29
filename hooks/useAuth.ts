@@ -33,8 +33,16 @@ export function useAuth(): AuthState {
   useEffect(() => {
     if (!auth) {
       // Local fallback mode if Firebase is not configured or in SSR
+      const localGoogleUser = typeof window !== 'undefined' ? localStorage.getItem('qr_wallet_local_google_user') : null;
       const localGuestId = typeof window !== 'undefined' ? localStorage.getItem('qr_wallet_local_guest_uid') : null;
-      if (localGuestId) {
+      
+      if (localGoogleUser) {
+        try {
+          setUser(JSON.parse(localGoogleUser));
+        } catch {
+          // ignore parsing error
+        }
+      } else if (localGuestId) {
         setUser({ uid: localGuestId, isAnonymous: true, email: null, displayName: 'Local Guest' } as unknown as User);
       }
       setLoading(false);
@@ -59,6 +67,22 @@ export function useAuth(): AuthState {
 
   const handleSignInGoogle = async () => {
     setError(null);
+    if (!auth) {
+      const simulatedGoogleUser = {
+        uid: 'google-user-' + Math.random().toString(36).substring(2, 9),
+        displayName: 'Google Account User',
+        email: 'user@gmail.com',
+        photoURL: null,
+        isAnonymous: false,
+        providerData: [{ providerId: 'google.com' }],
+      } as unknown as User;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('qr_wallet_local_google_user', JSON.stringify(simulatedGoogleUser));
+        localStorage.removeItem('qr_wallet_local_guest_uid');
+      }
+      setUser(simulatedGoogleUser);
+      return simulatedGoogleUser;
+    }
     try {
       return await signInWithGoogle();
     } catch (err: any) {
@@ -93,6 +117,7 @@ export function useAuth(): AuthState {
       const guestUid = 'local-guest-' + Math.random().toString(36).substring(2, 9);
       if (typeof window !== 'undefined') {
         localStorage.setItem('qr_wallet_local_guest_uid', guestUid);
+        localStorage.removeItem('qr_wallet_local_google_user');
       }
       const fakeUser = { uid: guestUid, isAnonymous: true, email: null, displayName: 'Local Guest' } as unknown as User;
       setUser(fakeUser);
@@ -111,6 +136,7 @@ export function useAuth(): AuthState {
     if (!auth) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('qr_wallet_local_guest_uid');
+        localStorage.removeItem('qr_wallet_local_google_user');
       }
       setUser(null);
       return;

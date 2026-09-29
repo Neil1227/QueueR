@@ -34,6 +34,7 @@ import {
   Monitor,
 } from 'lucide-react';
 import { ThemeMode } from '@/lib/theme';
+import { GoogleIcon } from './GoogleIcon';
 
 interface SettingsSheetProps {
   isOpen: boolean;
@@ -788,85 +789,127 @@ export function SettingsSheet({
               <div>
                 <h3 className="text-base font-semibold">Account & Cloud Sync</h3>
                 <p className="text-xs text-muted">
-                  {user
-                    ? user.email || (isGuest ? 'Guest User (Offline Local Storage)' : 'Signed in')
-                    : 'Sign in to sync cards across devices'}
+                  {user && !isGuest
+                    ? user.email || 'Signed in with Google'
+                    : 'Sign in to sync cards across all your devices'}
                 </p>
               </div>
             </div>
 
-            {user ? (
-              <div className="pt-2 border-t border-line/20 flex justify-between items-center">
-                <span className="text-sm font-medium text-text truncate max-w-[220px]">
-                  {user.email || 'Guest Mode'}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-red-500 hover:bg-red-500/10 px-3 py-2 rounded-xl transition-all cursor-pointer"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Sign Out</span>
-                </button>
+            {user && !isGuest ? (
+              <div className="pt-2 border-t border-line/20 space-y-3">
+                {/* User Profile Card */}
+                <div className="p-3.5 bg-bg rounded-2xl border border-line/30 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {user.photoURL ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={user.photoURL}
+                        alt={user.displayName || 'Google Profile'}
+                        className="w-11 h-11 rounded-full object-cover border border-white/40 shadow-xs shrink-0"
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 text-white font-bold text-base flex items-center justify-center shadow-xs shrink-0">
+                        {(user.displayName || user.email || 'G').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 truncate">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-sm text-text truncate">
+                          {user.displayName || 'Google Account'}
+                        </span>
+                        <span className="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
+                          <GoogleIcon className="w-2.5 h-2.5" />
+                          <span>Synced</span>
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted truncate block">
+                        {user.email || 'Connected'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-red-500 hover:bg-red-500/10 px-3 py-2 rounded-xl transition-all cursor-pointer shrink-0"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3 pt-2">
-                {isConfigured && (
-                  <button
-                    type="button"
-                    disabled={authLoading}
-                    onClick={handleGoogleSignIn}
-                    className="w-full py-3 px-4 rounded-xl bg-bg hover:bg-bg/80 border border-line text-text font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
-                  >
-                    <span>Sign in with Google</span>
-                  </button>
+                {isGuest && (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                    You are currently using <b>Guest Mode</b>. Sign in with Google to backup & sync your payment cards safely across your devices.
+                  </div>
                 )}
 
-                {isConfigured && (
-                  <form onSubmit={handleEmailAuth} className="space-y-2 pt-2">
-                    <input
-                      type="email"
-                      required
-                      placeholder="Email address"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
-                    />
-                    <input
-                      type="password"
-                      required
-                      placeholder="Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
-                    />
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        type="submit"
-                        disabled={authLoading}
-                        className="flex-1 py-2.5 rounded-xl bg-accent text-white font-semibold text-sm shadow-sm hover:bg-accent/90 cursor-pointer"
-                      >
-                        {authMode === 'signup' ? 'Create Account' : 'Sign In'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
-                        className="px-3 py-2.5 text-xs text-muted font-medium hover:text-text cursor-pointer"
-                      >
-                        {authMode === 'signin' ? 'Need account?' : 'Have account?'}
-                      </button>
-                    </div>
-                  </form>
-                )}
-
+                {/* Primary Google Login Button */}
                 <button
                   type="button"
                   disabled={authLoading}
-                  onClick={handleGuestSignIn}
-                  className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-muted hover:text-text hover:bg-bg transition-all cursor-pointer"
+                  onClick={handleGoogleSignIn}
+                  className="w-full py-3 px-4 rounded-2xl bg-surface hover:bg-surface/90 text-text font-semibold text-sm flex items-center justify-center gap-3 shadow-sm border border-line/60 hover:border-accent/50 active:scale-[0.99] transition-all cursor-pointer group"
                 >
-                  Continue as Guest (Local Offline)
+                  <GoogleIcon className="w-5 h-5 shrink-0 transition-transform group-hover:scale-110" />
+                  <span>{authLoading ? 'Signing in with Google...' : 'Continue with Google'}</span>
                 </button>
+
+                <div className="flex items-center gap-2 my-1">
+                  <div className="flex-1 h-px bg-line/20" />
+                  <span className="text-[11px] uppercase tracking-wider text-muted font-medium">or email</span>
+                  <div className="flex-1 h-px bg-line/20" />
+                </div>
+
+                {/* Email/Password Auth Form */}
+                <form onSubmit={handleEmailAuth} className="space-y-2">
+                  <input
+                    type="email"
+                    required
+                    placeholder="Email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
+                  />
+                  <input
+                    type="password"
+                    required
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
+                  />
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="submit"
+                      disabled={authLoading}
+                      className="flex-1 py-2.5 rounded-xl bg-accent text-white font-semibold text-sm shadow-sm hover:bg-accent/90 cursor-pointer"
+                    >
+                      {authMode === 'signup' ? 'Create Account' : 'Sign In'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+                      className="px-3 py-2.5 text-xs text-muted font-medium hover:text-text cursor-pointer"
+                    >
+                      {authMode === 'signin' ? 'Need account?' : 'Have account?'}
+                    </button>
+                  </div>
+                </form>
+
+                {!isGuest && (
+                  <button
+                    type="button"
+                    disabled={authLoading}
+                    onClick={handleGuestSignIn}
+                    className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-muted hover:text-text hover:bg-bg transition-all cursor-pointer"
+                  >
+                    Continue as Guest (Local Offline)
+                  </button>
+                )}
               </div>
             )}
           </section>
