@@ -38,6 +38,16 @@ export function AmountModal({
     }
   }, [isOpen, currentAmount, currentNote]);
 
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen || !mounted) return null;
 
   const numericAmount = parseFloat(amountStr) || 0;
@@ -72,19 +82,19 @@ export function AmountModal({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex flex-col justify-end sm:justify-center items-center p-0 sm:p-4 animate-fade-in"
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex flex-col justify-end sm:justify-center items-center p-0 sm:p-4 overflow-y-auto animate-fade-in"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-bg text-text w-full max-w-md rounded-t-[28px] sm:rounded-[28px] flex flex-col shadow-2xl overflow-hidden border border-line animate-slide-up pb-[calc(16px+env(safe-area-inset-bottom,0px))]"
+        className="relative bg-bg text-text w-full max-w-md rounded-t-[28px] sm:rounded-[28px] flex flex-col shadow-2xl overflow-hidden border border-line animate-slide-up pb-[calc(18px+env(safe-area-inset-bottom,0px))] my-0 sm:my-auto shrink-0"
       >
         {/* Grab Handle for Mobile */}
-        <div className="w-full flex items-center justify-center pt-2.5 pb-1 sm:hidden">
+        <div className="w-full flex items-center justify-center pt-3 pb-1 sm:hidden">
           <div className="w-10 h-1 rounded-full bg-muted/40" />
         </div>
 
         {/* Header */}
-        <div className="px-5 py-3 border-b border-line flex items-center justify-between">
+        <div className="px-5 py-3.5 border-b border-line flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-accent" />
             <h3 className="text-base font-bold tracking-tight">Request Exact Amount</h3>
@@ -106,8 +116,8 @@ export function AmountModal({
             <label htmlFor="fAmount" className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">
               Enter Amount (PHP)
             </label>
-            <div className="relative flex items-center">
-              <span className="absolute left-4 text-2xl font-bold text-text/80 select-none">
+            <div className="flex items-center bg-surface border border-line/80 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 rounded-2xl px-4 py-3 shadow-sm transition-all">
+              <span className="text-2xl sm:text-3xl font-bold text-text/75 select-none mr-2 shrink-0">
                 ₱
               </span>
               <input
@@ -120,7 +130,7 @@ export function AmountModal({
                 value={amountStr}
                 onChange={(e) => setAmountStr(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-surface border border-line/80 focus:border-accent rounded-2xl pl-10 pr-4 py-3.5 text-2xl sm:text-3xl font-bold text-text outline-none transition-all shadow-sm tabular-nums"
+                className="w-full bg-transparent text-2xl sm:text-3xl font-bold text-text outline-none tabular-nums placeholder:text-muted/40 p-0"
                 autoFocus
               />
             </div>
@@ -137,7 +147,7 @@ export function AmountModal({
                   key={val}
                   type="button"
                   onClick={() => handleAddPreset(val)}
-                  className="py-2 px-2.5 rounded-xl bg-surface hover:bg-surface/80 border border-line/50 text-xs font-semibold text-text active:scale-95 transition-all shadow-sm cursor-pointer text-center"
+                  className="py-2.5 px-2 rounded-xl bg-surface hover:bg-surface/80 border border-line/50 text-xs font-semibold text-text active:scale-95 transition-all shadow-sm cursor-pointer text-center"
                 >
                   +₱{val.toLocaleString()}
                 </button>
