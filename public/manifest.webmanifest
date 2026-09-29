@@ -1,0 +1,45 @@
+{
+  "name": "QueueR – Payment QR Wallet",
+  "short_name": "QueueR",
+  "description": "Skip the queue. Flash your QueueR. Mobile-first unified payment cards in Apple Wallet style.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F5F7",
+  "theme_color": "#F5F5F7",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Show default QR",
+      "short_name": "Default QR",
+      "url": "/",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "All cards",
+      "short_name": "Cards",
+      "url": "/?stack=1",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
