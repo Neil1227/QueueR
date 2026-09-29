@@ -1,17 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Card as CardType } from '@/lib/schema';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Card as CardType, CardCategory, CARD_CATEGORIES } from '@/lib/schema';
 import { bringToFront, PreviewNumberFormat } from '@/lib/cards';
 import { Card } from './Card';
-import { Settings, Plus, CreditCard } from 'lucide-react';
+import { CategoryIcon } from './CategoryIcon';
+import { Settings, Plus, CreditCard, Sparkles, FolderPlus } from 'lucide-react';
 
 interface CardStackProps {
   cards: CardType[];
   numberFormat?: PreviewNumberFormat;
   hideAddButton?: boolean;
   onOpenCard: (card: CardType) => void;
-  onAddCard: () => void;
+  onAddCard: (category?: CardCategory) => void;
   onOpenSettings: () => void;
 }
 
@@ -23,43 +24,53 @@ export function CardStack({
   onAddCard,
   onOpenSettings,
 }: CardStackProps) {
-  // Temporary client-side deck order: index 0 is front card, higher indices are stacked behind
-  const [deck, setDeck] = useState<CardType[]>(cards);
+  const [selectedCategory, setSelectedCategory] = useState<CardCategory | 'all'>('all');
   const [announcement, setAnnouncement] = useState<string>('');
-  const prevCardsRef = useRef<CardType[]>(cards);
 
-  // Synchronize deck when cards are added, deleted, or loaded
-  useEffect(() => {
-    const prevCards = prevCardsRef.current;
-    prevCardsRef.current = cards;
-
-    if (cards.length === 0) {
-      setDeck([]);
-      return;
+  // Calculate card counts per category
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: cards.length };
+    for (const card of cards) {
+      const cat = card.category || 'personal';
+      counts[cat] = (counts[cat] || 0) + 1;
     }
+    return counts;
+  }, [cards]);
 
+  // Filter cards based on selected category
+  const filteredCards = useMemo(() => {
+    if (selectedCategory === 'all') return cards;
+    return cards.filter((c) => (c.category || 'personal') === selectedCategory);
+  }, [cards, selectedCategory]);
+
+  // Temporary client-side deck order: index 0 is front card, higher indices are stacked behind
+  const [deck, setDeck] = useState<CardType[]>(filteredCards);
+  const prevFilteredRef = useRef<CardType[]>(filteredCards);
+
+  // Synchronize deck when cards or category filter changes
+  useEffect(() => {
     setDeck((currentDeck) => {
-      if (currentDeck.length === 0) {
-        return cards;
+      if (filteredCards.length === 0) {
+        return [];
       }
 
       // Check for removed cards
-      const validCards = currentDeck.filter((dc) => cards.some((c) => c.id === dc.id));
+      const validCards = currentDeck.filter((dc) => filteredCards.some((c) => c.id === dc.id));
       // Update any modified card details in place
       const updatedDeck = validCards.map((dc) => {
-        const fresh = cards.find((c) => c.id === dc.id);
+        const fresh = filteredCards.find((c) => c.id === dc.id);
         return fresh || dc;
       });
 
       // Check for newly added cards -> append to the back of the deck
-      const newCards = cards.filter((c) => !currentDeck.some((dc) => dc.id === c.id));
+      const newCards = filteredCards.filter((c) => !currentDeck.some((dc) => dc.id === c.id));
       if (newCards.length > 0) {
         return [...updatedDeck, ...newCards];
       }
 
-      return updatedDeck.length > 0 ? updatedDeck : cards;
+      return updatedDeck.length > 0 ? updatedDeck : filteredCards;
     });
-  }, [cards]);
+  }, [filteredCards]);
 
   const handleCardClick = (card: CardType, slotIndex: number) => {
     if (slotIndex === 0) {
@@ -81,6 +92,10 @@ export function CardStack({
     }
   };
 
+  const currentCategoryMeta = selectedCategory !== 'all' 
+    ? CARD_CATEGORIES.find((c) => c.id === selectedCategory) 
+    : null;
+
   const countText = deck.length
     ? `${deck.length} ${deck.length === 1 ? 'card' : 'cards'}`
     : '';
@@ -98,7 +113,7 @@ export function CardStack({
       </div>
 
       {/* Apple Wallet Navigation Header */}
-      <header className="px-5 pt-8 pb-3 flex items-baseline justify-between sticky top-0 bg-bg/80 backdrop-blur-xl z-40 transition-colors">
+      <header className="px-5 pt-8 pb-2 flex items-baseline justify-between sticky top-0 bg-bg/85 backdrop-blur-xl z-40 transition-colors">
         <div className="flex items-baseline gap-3">
           <h1 className="text-[34px] font-bold tracking-tight text-text leading-tight">
             QueueR
@@ -115,9 +130,71 @@ export function CardStack({
         </button>
       </header>
 
+      {/* Category Filter Chips Bar */}
+      {cards.length > 0 && (
+        <div className="px-5 pt-1 pb-2 sticky top-[72px] bg-bg/85 backdrop-blur-xl z-30 transition-colors">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('all')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm ${
+                selectedCategory === 'all'
+                  ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F]'
+                  : 'bg-surface text-muted hover:text-text border border-line/40'
+              }`}
+            >
+              <CategoryIcon category="all" className="w-3.5 h-3.5" />
+              <span>All</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  selectedCategory === 'all'
+                    ? 'bg-white/20 dark:bg-black/20'
+                    : 'bg-black/5 dark:bg-white/10'
+                }`}
+              >
+                {cards.length}
+              </span>
+            </button>
+
+            {CARD_CATEGORIES.map((cat) => {
+              const count = categoryCounts[cat.id] || 0;
+              const isSelected = selectedCategory === cat.id;
+
+              // Show if has cards or if currently selected
+              if (count === 0 && !isSelected) return null;
+
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm ${
+                    isSelected
+                      ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F]'
+                      : 'bg-surface text-muted hover:text-text border border-line/40'
+                  }`}
+                >
+                  <CategoryIcon category={cat.id} className="w-3.5 h-3.5" />
+                  <span>{cat.shortLabel}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      isSelected
+                        ? 'bg-white/20 dark:bg-black/20'
+                        : 'bg-black/5 dark:bg-white/10'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Card Deck Area */}
-      <main aria-label="Your payment cards deck" className="px-4 pt-4 flex-1">
-        {deck.length === 0 ? (
+      <main aria-label="Your payment cards deck" className="px-4 pt-3 flex-1">
+        {cards.length === 0 ? (
           <div className="text-center py-24 px-6 text-muted space-y-4">
             <div className="w-20 h-20 rounded-full bg-surface border border-line/40 mx-auto flex items-center justify-center text-muted shadow-sm">
               <CreditCard className="w-10 h-10 opacity-60 text-accent" />
@@ -128,6 +205,29 @@ export function CardStack({
                 Add your bank and e-wallet QR codes to show and receive payments in one tap.
               </p>
             </div>
+          </div>
+        ) : deck.length === 0 ? (
+          // Category-specific Empty State
+          <div className="text-center py-16 px-6 text-muted space-y-4 animate-fade-in">
+            <div className="w-16 h-16 rounded-full bg-surface border border-line/40 mx-auto flex items-center justify-center text-accent shadow-sm">
+              <CategoryIcon category={selectedCategory} className="w-8 h-8" />
+            </div>
+            <div>
+              <b className="block text-lg font-semibold text-text">
+                No {currentCategoryMeta?.label || 'Category'} Cards
+              </b>
+              <p className="text-xs leading-relaxed max-w-xs mx-auto mt-1 text-muted">
+                You don&apos;t have any cards saved under {currentCategoryMeta?.label || 'this category'} yet.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onAddCard(selectedCategory !== 'all' ? selectedCategory : undefined)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent text-white font-semibold text-xs shadow-md hover:bg-accent/90 active:scale-95 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add {currentCategoryMeta?.shortLabel || 'Category'} Card</span>
+            </button>
           </div>
         ) : (
           <div
@@ -156,7 +256,7 @@ export function CardStack({
           type="button"
           id="add"
           aria-label="Add card"
-          onClick={onAddCard}
+          onClick={() => onAddCard(selectedCategory !== 'all' ? selectedCategory : undefined)}
           style={{
             position: 'fixed',
             right: '20px',
@@ -181,3 +281,4 @@ export function CardStack({
     </div>
   );
 }
+

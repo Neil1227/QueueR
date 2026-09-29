@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardInput } from '@/lib/schema';
+import { Card, CardInput, CardCategory, CARD_CATEGORIES } from '@/lib/schema';
 import { PROVIDERS, DEFAULT_PROVIDER } from '@/lib/providers';
 import { ProviderChips } from './ProviderChips';
 import { QRPreview } from './QRPreview';
@@ -11,11 +11,13 @@ import { BankLogo } from './BankLogo';
 import { BankPickerModal } from './BankPickerModal';
 import { findBankBrand, getCategoryLabel, BankBrandInfo } from '@/lib/bank-logos';
 import { formatInputAccountNumber } from '@/lib/cards';
+import { CategoryIcon } from './CategoryIcon';
 import { Building2, Sparkles, Check } from 'lucide-react';
 
 interface EditorSheetProps {
   card: Card | null;
   isOpen: boolean;
+  initialCategory?: CardCategory;
   onClose: () => void;
   onSave: (data: CardInput) => Promise<void>;
   onDelete: (cardId: string) => Promise<void>;
@@ -24,6 +26,7 @@ interface EditorSheetProps {
 export function EditorSheet({
   card,
   isOpen,
+  initialCategory,
   onClose,
   onSave,
   onDelete,
@@ -35,6 +38,7 @@ export function EditorSheet({
   const [holder, setHolder] = useState('');
   const [number, setNumber] = useState('');
   const [label, setLabel] = useState('');
+  const [category, setCategory] = useState<CardCategory>('personal');
   const [isDefault, setIsDefault] = useState(false);
   const [payload, setPayload] = useState<string | null>(null);
   const [imgB64, setImgB64] = useState<string | null>(null);
@@ -61,6 +65,7 @@ export function EditorSheet({
         setHolder(card.holder || '');
         setNumber(card.number ? formatInputAccountNumber(card.number) : '');
         setLabel(card.label || '');
+        setCategory(card.category || 'personal');
         setIsDefault(card.isDefault || false);
         setPayload(card.payload || null);
         setImgB64(card.imgB64 || null);
@@ -81,6 +86,7 @@ export function EditorSheet({
         setHolder('');
         setNumber('');
         setLabel('');
+        setCategory(initialCategory || 'personal');
         setIsDefault(false);
         setPayload(null);
         setImgB64(null);
@@ -89,7 +95,7 @@ export function EditorSheet({
         setQrSuccess(false);
       }
     }
-  }, [isOpen, card]);
+  }, [isOpen, card, initialCategory]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -214,6 +220,7 @@ export function EditorSheet({
         holder: holder.trim(),
         number: number.trim(),
         label: label.trim(),
+        category,
         payload,
         imgB64,
         logoB64,
@@ -422,6 +429,33 @@ export function EditorSheet({
               placeholder="e.g. 0917 123 4567 or 1234 5678 9012"
               className="w-full bg-surface border border-line/60 focus:border-accent rounded-2xl px-4 py-3.5 text-base font-mono text-text outline-none transition-all shadow-sm"
             />
+          </div>
+
+          {/* Card Category Selection */}
+          <div>
+            <label className="block text-xs font-semibold text-text/80 mb-2">
+              Card Category
+            </label>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {CARD_CATEGORIES.map((cat) => {
+                const isSelected = category === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setCategory(cat.id)}
+                    className={`py-2 px-1.5 rounded-xl text-xs font-semibold flex flex-col items-center justify-center gap-1.5 border transition-all active:scale-95 cursor-pointer ${
+                      isSelected
+                        ? 'bg-accent/15 text-accent border-accent shadow-sm ring-1 ring-accent/30'
+                        : 'bg-surface text-text/80 border-line/40 hover:border-line'
+                    }`}
+                  >
+                    <CategoryIcon category={cat.id} className="w-4 h-4" />
+                    <span className="truncate max-w-full text-[11px] font-medium">{cat.shortLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div>

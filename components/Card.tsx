@@ -1,11 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Card as CardType } from '@/lib/schema';
+import { Card as CardType, CARD_CATEGORIES } from '@/lib/schema';
 import { fgFor, getCardGradient } from '@/lib/colors';
 import { last4, formatPreviewNumber, PreviewNumberFormat } from '@/lib/cards';
 import { BankLogo } from './BankLogo';
-import { Wifi, QrCode } from 'lucide-react';
+import { CategoryIcon } from './CategoryIcon';
+import { Wifi, QrCode, Star } from 'lucide-react';
 
 interface CardProps {
   card: CardType;
@@ -56,6 +57,8 @@ export function Card({
     : `Bring ${card.provider}${card.label ? ` ${card.label}` : ''}${
         card.number ? ` ending in ${last4(card.number)}` : ''
       } to front`;
+
+  const categoryMeta = card.category ? CARD_CATEGORIES.find((c) => c.id === card.category) : null;
 
   return (
     <div
@@ -109,9 +112,9 @@ export function Card({
             {card.isDefault && (
               <span
                 title="Default Card"
-                className="inline-flex items-center text-amber-300 text-xs font-bold bg-black/25 px-1.5 py-0.5 rounded-full backdrop-blur-sm shadow-sm flex-shrink-0 ml-0.5"
+                className="inline-flex items-center justify-center text-amber-300 bg-black/25 p-1 rounded-full backdrop-blur-sm shadow-sm flex-shrink-0 ml-0.5"
               >
-                ★
+                <Star className="w-2.5 h-2.5 fill-amber-300 text-amber-300" />
               </span>
             )}
           </div>
@@ -132,14 +135,21 @@ export function Card({
           </div>
         </div>
 
-        {/* EMV Chip Graphic (Only shown in the front card body) */}
+        {/* EMV Chip & Category Badge (Only shown in the front card body) */}
         {isFront && (
-          <div className="absolute top-[64px] left-5 z-10 pointer-events-none opacity-80">
-            <div className="w-9 h-7 rounded-md bg-gradient-to-br from-amber-200/30 to-amber-400/20 border border-white/20 flex flex-col justify-around p-1 shadow-inner">
+          <div className="absolute top-[64px] left-5 right-5 z-10 pointer-events-none flex items-center justify-between">
+            <div className="w-9 h-7 rounded-md bg-gradient-to-br from-amber-200/30 to-amber-400/20 border border-white/20 flex flex-col justify-around p-1 shadow-inner opacity-80">
               <div className="w-full h-px bg-white/30" />
               <div className="w-full h-px bg-white/30" />
               <div className="w-full h-px bg-white/30" />
             </div>
+
+            {categoryMeta && (
+              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-black/25 backdrop-blur-md border border-white/15 drop-shadow-sm flex items-center gap-1.5 opacity-90">
+                <CategoryIcon category={card.category} className="w-3 h-3" />
+                <span>{categoryMeta.shortLabel}</span>
+              </span>
+            )}
           </div>
         )}
 

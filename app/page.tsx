@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardInput } from '@/lib/schema';
+import { Card, CardInput, CardCategory } from '@/lib/schema';
 import { useAuth } from '@/hooks/useAuth';
 import { useCards } from '@/hooks/useCards';
 import { useAppLock } from '@/hooks/useAppLock';
@@ -55,6 +55,7 @@ export default function HomePage() {
 
   const [receiveCard, setReceiveCard] = useState<Card | null>(null);
   const [editorCard, setEditorCard] = useState<Card | null>(null);
+  const [editorCategory, setEditorCategory] = useState<CardCategory | undefined>(undefined);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [numberFormat, setNumberFormat] = useState<PreviewNumberFormat>('last4');
@@ -105,11 +106,13 @@ export default function HomePage() {
 
   const handleEditFromReceive = (card: Card) => {
     setReceiveCard(null);
+    setEditorCategory(card.category || 'personal');
     setEditorCard(card);
     setIsEditorOpen(true);
   };
 
-  const handleAddNewCard = () => {
+  const handleAddNewCard = (category?: CardCategory) => {
+    setEditorCategory(category);
     setEditorCard(null);
     setIsEditorOpen(true);
   };
@@ -117,6 +120,7 @@ export default function HomePage() {
   const handleCloseEditor = () => {
     setIsEditorOpen(false);
     setEditorCard(null);
+    setEditorCategory(undefined);
   };
 
   const handleSaveCard = async (input: CardInput) => {
@@ -157,6 +161,7 @@ export default function HomePage() {
       <EditorSheet
         card={editorCard}
         isOpen={isEditorOpen}
+        initialCategory={editorCategory}
         onClose={handleCloseEditor}
         onSave={handleSaveCard}
         onDelete={handleDeleteCard}

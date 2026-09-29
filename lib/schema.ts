@@ -1,5 +1,22 @@
 import { z } from 'zod';
 
+export type CardCategory = 'personal' | 'business' | 'savings' | 'freelance' | 'other';
+
+export interface CardCategoryOption {
+  id: CardCategory;
+  label: string;
+  shortLabel: string;
+  iconName: 'User' | 'Store' | 'PiggyBank' | 'Briefcase' | 'Tag';
+}
+
+export const CARD_CATEGORIES: CardCategoryOption[] = [
+  { id: 'personal', label: 'Personal', shortLabel: 'Personal', iconName: 'User' },
+  { id: 'business', label: 'Business / Shop', shortLabel: 'Business', iconName: 'Store' },
+  { id: 'savings', label: 'Savings & Vault', shortLabel: 'Savings', iconName: 'PiggyBank' },
+  { id: 'freelance', label: 'Freelance & Work', shortLabel: 'Freelance', iconName: 'Briefcase' },
+  { id: 'other', label: 'Other / Misc', shortLabel: 'Other', iconName: 'Tag' },
+];
+
 export const CardSchema = z.object({
   id: z.string().min(1, 'Card ID is required'),
   provider: z.string().min(1, 'Provider name is required').max(50),
@@ -8,6 +25,7 @@ export const CardSchema = z.object({
   number: z.string().max(100).default(''),
   numberEnc: z.string().optional(),
   label: z.string().max(50).default(''),
+  category: z.enum(['personal', 'business', 'savings', 'freelance', 'other']).default('personal'),
   payload: z.string().nullable().optional(),
   payloadEnc: z.string().nullable().optional(),
   imgB64: z.string().nullable().optional(),
@@ -35,6 +53,7 @@ export const CardInputSchema = z.object({
   holder: z.string().max(100).default(''),
   number: z.string().max(100).default(''),
   label: z.string().max(50).default(''),
+  category: z.enum(['personal', 'business', 'savings', 'freelance', 'other']).default('personal'),
   payload: z.string().nullable().optional(),
   imgB64: z.string().nullable().optional(),
   logoB64: z.string().nullable().optional(),
@@ -50,3 +69,4 @@ export const UserMetaSchema = z.object({
 });
 
 export type UserMeta = z.infer<typeof UserMetaSchema>;
+
