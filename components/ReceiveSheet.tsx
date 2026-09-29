@@ -646,7 +646,7 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
                   value={shareFooterText}
                   onChange={(e) => handleFooterTextChange(e.target.value)}
                   placeholder="Scan to pay"
-                  className="w-full px-3 py-2 rounded-xl bg-bg border border-line/30 text-xs font-medium text-text focus:outline-none focus:border-accent"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-bg border border-line/40 text-xs font-medium text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
                 />
               </div>
             </div>

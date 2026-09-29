@@ -487,7 +487,7 @@ export function SettingsSheet({
                     placeholder="Enter 4-6 digit PIN"
                     value={newPin}
                     onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                    className="w-full bg-surface border border-line/50 rounded-xl px-3.5 py-2 text-sm text-text font-mono text-center tracking-widest outline-none focus:border-accent"
+                    className="w-full bg-surface border border-line/50 rounded-xl px-3.5 py-2 text-sm text-text font-mono text-center tracking-widest outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
                   />
                   <div className="flex gap-2">
                     <button
@@ -659,7 +659,7 @@ export function SettingsSheet({
                       placeholder="Choose a strong passphrase"
                       value={exportPassphrase}
                       onChange={(e) => setExportPassphrase(e.target.value)}
-                      className="w-full bg-surface border border-line/50 rounded-xl px-3.5 py-2 text-sm text-text outline-none focus:border-accent"
+                      className="w-full bg-surface border border-line/50 rounded-xl px-3.5 py-2 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
                     />
                   </div>
 
@@ -744,7 +744,7 @@ export function SettingsSheet({
                     placeholder="Enter E2EE passphrase"
                     value={passphrase}
                     onChange={(e) => setPassphrase(e.target.value)}
-                    className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent"
+                    className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
                   />
                   <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-snug">
                     Important: We never store your passphrase. If lost, encrypted data is permanently unrecoverable.
@@ -830,7 +830,7 @@ export function SettingsSheet({
                       placeholder="Email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent"
+                      className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
                     />
                     <input
                       type="password"
@@ -838,7 +838,7 @@ export function SettingsSheet({
                       placeholder="Password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent"
+                      className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
                     />
                     <div className="flex gap-2 pt-1">
                       <button
@@ -902,7 +902,7 @@ export function SettingsSheet({
                     placeholder="Enter passphrase used during export"
                     value={importPassphrase}
                     onChange={(e) => setImportPassphrase(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-bg border border-line/40 text-sm text-text focus:outline-none focus:border-accent"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-bg border border-line/40 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
                   />
                 </div>
 

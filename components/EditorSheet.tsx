@@ -399,7 +399,7 @@ export function EditorSheet({
               value={holder}
               onChange={(e) => setHolder(e.target.value)}
               placeholder="Juan Dela Cruz"
-              className="w-full bg-surface border border-line/60 focus:border-accent rounded-2xl px-4 py-3.5 text-base text-text outline-none transition-all shadow-sm"
+              className="w-full bg-surface border border-line/60 focus:border-accent focus:ring-2 focus:ring-accent/20 rounded-2xl px-4 py-3.5 text-base text-text outline-none transition-all shadow-sm"
             />
           </div>
 
@@ -427,7 +427,7 @@ export function EditorSheet({
               value={number}
               onChange={(e) => setNumber(formatInputAccountNumber(e.target.value))}
               placeholder="e.g. 0917 123 4567 or 1234 5678 9012"
-              className="w-full bg-surface border border-line/60 focus:border-accent rounded-2xl px-4 py-3.5 text-base font-mono text-text outline-none transition-all shadow-sm"
+              className="w-full bg-surface border border-line/60 focus:border-accent focus:ring-2 focus:ring-accent/20 rounded-2xl px-4 py-3.5 text-base font-mono text-text outline-none transition-all shadow-sm"
             />
           </div>
 
@@ -468,7 +468,7 @@ export function EditorSheet({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Personal, Shop, Savings…"
-              className="w-full bg-surface border border-line/60 focus:border-accent rounded-2xl px-4 py-3.5 text-base text-text outline-none transition-all shadow-sm"
+              className="w-full bg-surface border border-line/60 focus:border-accent focus:ring-2 focus:ring-accent/20 rounded-2xl px-4 py-3.5 text-base text-text outline-none transition-all shadow-sm"
             />
           </div>
 

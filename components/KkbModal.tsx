@@ -326,7 +326,7 @@ export function KkbModal({
             </div>
 
             {isCustomTip && (
-              <div className="mt-2 flex items-center bg-bg border border-line/60 focus-within:border-emerald-500 rounded-xl px-3 py-2 text-sm">
+              <div className="mt-2 flex items-center bg-bg border border-line/60 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl px-3 py-2 text-sm shadow-sm transition-all">
                 <span className="font-bold text-text/75 mr-2">₱</span>
                 <input
                   type="number"
@@ -391,7 +391,7 @@ export function KkbModal({
               value={noteStr}
               onChange={(e) => setNoteStr(e.target.value)}
               placeholder="e.g. Dinner with Friends, Samgyup, Coffee"
-              className="w-full bg-bg border border-line/60 focus:border-accent rounded-xl px-3.5 py-2.5 text-sm text-text outline-none transition-all shadow-sm"
+              className="w-full bg-bg border border-line/60 focus:border-accent focus:ring-2 focus:ring-accent/20 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none transition-all shadow-sm"
             />
           </div>
 

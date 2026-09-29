@@ -167,7 +167,7 @@ export function AmountModal({
               value={noteStr}
               onChange={(e) => setNoteStr(e.target.value)}
               placeholder="e.g. Lunch, Coffee, Rent, KKB"
-              className="w-full bg-surface border border-line/60 focus:border-accent rounded-xl px-3.5 py-2.5 text-sm text-text outline-none transition-all shadow-sm"
+              className="w-full bg-surface border border-line/60 focus:border-accent focus:ring-2 focus:ring-accent/20 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none transition-all shadow-sm"
             />
           </div>
 
