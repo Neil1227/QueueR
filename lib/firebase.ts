@@ -4,6 +4,8 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInAnonymously,
@@ -12,10 +14,7 @@ import {
   Auth,
 } from 'firebase/auth';
 import {
-  initializeFirestore,
   getFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
   collection,
   doc,
   onSnapshot,
@@ -53,47 +52,51 @@ let db: Firestore | null = null;
 if (typeof window !== 'undefined' && isFirebaseConfigured) {
   try {
     app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-
-    try {
-      auth = getAuth(app);
-    } catch (authErr) {
-      console.warn('Auth initialization fallback:', authErr);
-      auth = null;
-    }
-
-    try {
-      db = initializeFirestore(app, {
-        localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager(),
-        }),
-      });
-    } catch {
-      try {
-        db = getFirestore(app);
-      } catch (dbErr) {
-        console.warn('Firestore initialization fallback:', dbErr);
-        db = null;
-      }
-    }
-
-    // Optional Analytics (Client-side dynamic load)
-    if (firebaseConfig.measurementId) {
-      import('firebase/analytics')
-        .then(({ getAnalytics, isSupported }) => {
-          isSupported().then((supported) => {
-            if (supported && app) {
-              getAnalytics(app);
-            }
-          });
-        })
-        .catch(() => {});
-    }
+    auth = getAuth(app);
+    db = getFirestore(app);
   } catch (err) {
     console.error('Firebase initialization error:', err);
   }
 }
 
 export { app, auth, db };
+
+/**
+ * Human-friendly error translation for Firebase Auth error codes.
+ */
+export function getAuthErrorMessage(err: any): string {
+  if (!err) return 'An unknown error occurred. Please try again.';
+  const code = err.code || '';
+  switch (code) {
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return 'Sign-in window was closed before completing.';
+    case 'auth/popup-blocked':
+      return 'Sign-in popup was blocked by your browser. Please allow popups or use redirect.';
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      return 'Incorrect email or password. Please verify your credentials.';
+    case 'auth/email-already-in-use':
+      return 'This email address is already registered. Please sign in instead.';
+    case 'auth/weak-password':
+      return 'Password is too weak. Please use at least 6 characters.';
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.';
+    case 'auth/user-disabled':
+      return 'This user account has been disabled. Please contact support.';
+    case 'auth/too-many-requests':
+      return 'Too many failed attempts. Please wait a few moments or reset your password.';
+    case 'auth/network-request-failed':
+      return 'Network connection failed. Please check your internet connection.';
+    case 'auth/operation-not-allowed':
+      return 'Sign-in method is not enabled in the Firebase Console.';
+    case 'auth/unauthorized-domain':
+      return 'Current domain is not authorized in Firebase Auth settings.';
+    default:
+      return err.message || 'Authentication failed. Please try again.';
+  }
+}
 
 export async function signInWithGoogle(): Promise<User | null> {
   if (!auth) throw new Error('Firebase Auth is not configured');
@@ -103,11 +106,23 @@ export async function signInWithGoogle(): Promise<User | null> {
     const result = await signInWithPopup(auth, provider);
     return result.user;
   } catch (err: any) {
-    if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/popup-closed-by-user') {
+    console.error('Google Sign-In error:', err);
+    if (err?.code === 'auth/popup-blocked') {
       await signInWithRedirect(auth, provider);
       return null;
     }
     throw err;
+  }
+}
+
+export async function handleRedirectResult(): Promise<User | null> {
+  if (!auth) return null;
+  try {
+    const result = await getRedirectResult(auth);
+    return result ? result.user : null;
+  } catch (err) {
+    console.warn('Redirect auth result check:', err);
+    return null;
   }
 }
 
@@ -123,6 +138,11 @@ export async function signUpWithEmail(email: string, pass: string): Promise<User
   return res.user;
 }
 
+export async function sendPasswordReset(email: string): Promise<void> {
+  if (!auth) throw new Error('Firebase Auth is not configured');
+  await sendPasswordResetEmail(auth, email);
+}
+
 export async function signInGuest(): Promise<User> {
   if (!auth) throw new Error('Firebase Auth is not configured');
   const res = await signInAnonymously(auth);
@@ -135,8 +155,17 @@ export async function logOut(): Promise<void> {
 }
 
 /**
+ * Helper to check if current Firebase auth user matches the requested user ID.
+ */
+export function isAuthUser(userId?: string | null): boolean {
+  if (!userId || !auth?.currentUser) return false;
+  return auth.currentUser.uid === userId;
+}
+
+/**
  * Subscribe to realtime card updates from Firestore for a given user.
- * Falls back to local storage cache if offline or Firebase is not configured.
+ * Falls back to local storage cache if offline, guest, or Firebase is not configured.
+ * Automatically syncs local guest cards if user has no cards on remote cloud.
  */
 export function subscribeToUserCards(
   userId: string,
@@ -149,17 +178,20 @@ export function subscribeToUserCards(
     onCards(initialCards);
   }
 
-  if (!db || !userId) {
+  // If not connected to a live matching Firebase auth session, operate in offline local mode
+  if (!db || !isAuthUser(userId)) {
     return () => {};
   }
 
   const cardsCol = collection(db, 'users', userId, 'cards');
   const q = query(cardsCol, orderBy('createdAt', 'desc'));
 
+  let hasAttemptedInitialSync = false;
+
   const unsubscribe = onSnapshot(
     q,
     { includeMetadataChanges: true },
-    (snapshot) => {
+    async (snapshot) => {
       const cards: Card[] = [];
       snapshot.forEach((docSnap) => {
         const raw = docSnap.data();
@@ -171,17 +203,46 @@ export function subscribeToUserCards(
         }
       });
 
+      // Auto-sync offline guest cards to newly created user cloud account
+      if (!hasAttemptedInitialSync && cards.length === 0 && initialCards.length > 0 && !snapshot.metadata.hasPendingWrites) {
+        hasAttemptedInitialSync = true;
+        for (const c of initialCards) {
+          try {
+            await saveUserCard(userId, c);
+          } catch (syncErr) {
+            console.warn('Failed to sync offline card to cloud:', syncErr);
+          }
+        }
+        return;
+      }
+
       // Update local storage cache
       setCachedCards(cards);
       onCards(cards);
     },
     (err) => {
-      console.warn('Firestore snapshot error:', err);
+      console.warn('Firestore snapshot notice (using local offline cache):', err?.message);
+      // Fallback to local cached cards on permission error
+      const cached = getCachedCards();
+      onCards(cached);
       if (onError) onError(err);
     }
   );
 
   return unsubscribe;
+}
+
+/**
+ * Strips undefined properties from object to ensure Firestore compatibility.
+ */
+function cleanForFirestore<T extends Record<string, any>>(data: T): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 /**
@@ -194,7 +255,7 @@ export async function saveUserCard(
 ): Promise<void> {
   const validated = CardSchema.parse(cardData);
 
-  if (!db || !userId) {
+  if (!db || !isAuthUser(userId)) {
     // Local offline storage fallback
     const current = getCachedCards();
     const filtered = current.filter((c) => c.id !== validated.id);
@@ -208,31 +269,50 @@ export async function saveUserCard(
     return;
   }
 
-  const batch = writeBatch(db);
-  const cardRef = doc(db, 'users', userId, 'cards', validated.id);
+  try {
+    const batch = writeBatch(db);
+    const cardRef = doc(db, 'users', userId, 'cards', validated.id);
 
-  if (validated.isDefault && previousDefaultId && previousDefaultId !== validated.id) {
-    const prevRef = doc(db, 'users', userId, 'cards', previousDefaultId);
-    batch.update(prevRef, { isDefault: false, updatedAt: Date.now() });
+    if (validated.isDefault && previousDefaultId && previousDefaultId !== validated.id) {
+      const prevRef = doc(db, 'users', userId, 'cards', previousDefaultId);
+      batch.update(prevRef, { isDefault: false, updatedAt: Date.now() });
+    }
+
+    const cleanData = cleanForFirestore(validated);
+    batch.set(cardRef, cleanData, { merge: true });
+    await batch.commit();
+  } catch (err) {
+    console.warn('Firestore save fallback to local cache:', err);
+    // Keep local cache intact on Firestore error
+    const current = getCachedCards();
+    const filtered = current.filter((c) => c.id !== validated.id);
+    if (validated.isDefault) {
+      filtered.forEach((c) => {
+        c.isDefault = false;
+      });
+    }
+    setCachedCards([validated, ...filtered]);
   }
-
-  batch.set(cardRef, validated, { merge: true });
-  await batch.commit();
 }
 
 /**
  * Delete a card by ID.
  */
 export async function deleteUserCard(userId: string, cardId: string): Promise<void> {
-  if (!db || !userId) {
-    const current = getCachedCards();
-    const updated = current.filter((c) => c.id !== cardId);
-    setCachedCards(updated);
+  const current = getCachedCards();
+  const updated = current.filter((c) => c.id !== cardId);
+  setCachedCards(updated);
+
+  if (!db || !isAuthUser(userId)) {
     return;
   }
 
-  const cardRef = doc(db, 'users', userId, 'cards', cardId);
-  await deleteDoc(cardRef);
+  try {
+    const cardRef = doc(db, 'users', userId, 'cards', cardId);
+    await deleteDoc(cardRef);
+  } catch (err) {
+    console.warn('Firestore delete fallback:', err);
+  }
 }
 
 /**
@@ -240,42 +320,58 @@ export async function deleteUserCard(userId: string, cardId: string): Promise<vo
  */
 export async function recordCardUse(userId: string, cardId: string): Promise<void> {
   const now = Date.now();
-  if (!db || !userId) {
-    const current = getCachedCards();
-    const target = current.find((c) => c.id === cardId);
-    if (target) {
-      target.useCount = (target.useCount || 0) + 1;
-      target.lastUsedAt = now;
-      setCachedCards(current);
-    }
+  const current = getCachedCards();
+  const target = current.find((c) => c.id === cardId);
+  if (target) {
+    target.useCount = (target.useCount || 0) + 1;
+    target.lastUsedAt = now;
+    setCachedCards(current);
+  }
+
+  if (!db || !isAuthUser(userId)) {
     return;
   }
 
-  const cardRef = doc(db, 'users', userId, 'cards', cardId);
-  await updateDoc(cardRef, {
-    useCount: increment(1),
-    lastUsedAt: now,
-  });
+  try {
+    const cardRef = doc(db, 'users', userId, 'cards', cardId);
+    await updateDoc(cardRef, {
+      useCount: increment(1),
+      lastUsedAt: now,
+    });
+  } catch (err) {
+    console.warn('Firestore recordUse fallback:', err);
+  }
 }
 
 /**
  * Get user metadata (E2EE settings, salt).
  */
 export async function getUserMeta(userId: string): Promise<UserMeta | null> {
-  if (!db || !userId) return null;
-  const metaRef = doc(db, 'users', userId, 'meta', 'settings');
-  const snap = await getDoc(metaRef);
-  if (!snap.exists()) return null;
-  const parsed = UserMetaSchema.safeParse(snap.data());
-  return parsed.success ? parsed.data : null;
+  if (!db || !isAuthUser(userId)) return null;
+  try {
+    const metaRef = doc(db, 'users', userId, 'meta', 'settings');
+    const snap = await getDoc(metaRef);
+    if (!snap.exists()) return null;
+    const parsed = UserMetaSchema.safeParse(snap.data());
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Save user metadata.
  */
 export async function saveUserMeta(userId: string, meta: UserMeta): Promise<void> {
-  if (!db || !userId) return;
-  const validated = UserMetaSchema.parse(meta);
-  const metaRef = doc(db, 'users', userId, 'meta', 'settings');
-  await setDoc(metaRef, validated, { merge: true });
+  if (!db || !isAuthUser(userId)) return;
+  try {
+    const validated = UserMetaSchema.parse(meta);
+    const metaRef = doc(db, 'users', userId, 'meta', 'settings');
+    const cleanData = cleanForFirestore(validated);
+    await setDoc(metaRef, cleanData, { merge: true });
+  } catch (err) {
+    console.warn('Firestore saveUserMeta fallback:', err);
+  }
 }
+
+

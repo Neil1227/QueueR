@@ -6,10 +6,13 @@ import {
   auth,
   isFirebaseConfigured,
   signInWithGoogle,
+  handleRedirectResult,
   signInWithEmail,
   signUpWithEmail,
+  sendPasswordReset,
   signInGuest,
   logOut,
+  getAuthErrorMessage,
 } from '@/lib/firebase';
 
 export interface AuthState {
@@ -21,6 +24,7 @@ export interface AuthState {
   signInWithGoogle: () => Promise<User | null>;
   signInWithEmail: (email: string, pass: string) => Promise<User>;
   signUpWithEmail: (email: string, pass: string) => Promise<User>;
+  sendPasswordReset: (email: string) => Promise<void>;
   signInGuest: () => Promise<User | null>;
   signOut: () => Promise<void>;
 }
@@ -49,6 +53,17 @@ export function useAuth(): AuthState {
       return;
     }
 
+    // Check if returning from a mobile redirect sign-in flow
+    handleRedirectResult()
+      .then((redirectUser) => {
+        if (redirectUser) {
+          setUser(redirectUser);
+        }
+      })
+      .catch((err) => {
+        console.warn('Redirect sign-in resolution error:', err);
+      });
+
     const unsubscribe = onAuthStateChanged(
       auth,
       (currentUser) => {
@@ -57,7 +72,7 @@ export function useAuth(): AuthState {
       },
       (err) => {
         console.error('Auth state change error:', err);
-        setError(err.message);
+        setError(getAuthErrorMessage(err));
         setLoading(false);
       }
     );
@@ -86,8 +101,9 @@ export function useAuth(): AuthState {
     try {
       return await signInWithGoogle();
     } catch (err: any) {
-      setError(err?.message || 'Google sign-in failed');
-      throw err;
+      const msg = getAuthErrorMessage(err);
+      setError(msg);
+      throw new Error(msg);
     }
   };
 
@@ -96,8 +112,9 @@ export function useAuth(): AuthState {
     try {
       return await signInWithEmail(email, pass);
     } catch (err: any) {
-      setError(err?.message || 'Email sign-in failed');
-      throw err;
+      const msg = getAuthErrorMessage(err);
+      setError(msg);
+      throw new Error(msg);
     }
   };
 
@@ -106,8 +123,20 @@ export function useAuth(): AuthState {
     try {
       return await signUpWithEmail(email, pass);
     } catch (err: any) {
-      setError(err?.message || 'Sign up failed');
-      throw err;
+      const msg = getAuthErrorMessage(err);
+      setError(msg);
+      throw new Error(msg);
+    }
+  };
+
+  const handleSendPasswordReset = async (email: string) => {
+    setError(null);
+    try {
+      await sendPasswordReset(email);
+    } catch (err: any) {
+      const msg = getAuthErrorMessage(err);
+      setError(msg);
+      throw new Error(msg);
     }
   };
 
@@ -126,8 +155,9 @@ export function useAuth(): AuthState {
     try {
       return await signInGuest();
     } catch (err: any) {
-      setError(err?.message || 'Guest sign-in failed');
-      throw err;
+      const msg = getAuthErrorMessage(err);
+      setError(msg);
+      throw new Error(msg);
     }
   };
 
@@ -153,7 +183,9 @@ export function useAuth(): AuthState {
     signInWithGoogle: handleSignInGoogle,
     signInWithEmail: handleSignInEmail,
     signUpWithEmail: handleSignUpEmail,
+    sendPasswordReset: handleSendPasswordReset,
     signInGuest: handleSignInGuest,
     signOut: handleSignOut,
   };
 }
+

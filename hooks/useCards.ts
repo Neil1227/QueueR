@@ -16,6 +16,7 @@ import {
   setCachedCards,
   getCachedDefaultCard,
 } from '@/lib/cards';
+import { mergeCards } from '@/lib/backup';
 import { deriveKey, encryptText, decryptText, generateSalt } from '@/lib/crypto';
 
 export function useCards(userId?: string | null) {
@@ -249,7 +250,7 @@ export function useCards(userId?: string | null) {
       if (mode === 'replace') {
         targetCards = importedList;
       } else {
-        const { merged } = await import('@/lib/backup').then((m) => m.mergeCards(current, importedList));
+        const { merged } = mergeCards(current, importedList);
         targetCards = merged;
       }
 

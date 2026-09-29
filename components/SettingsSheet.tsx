@@ -18,6 +18,7 @@ import {
 } from '@/lib/backup';
 import {
   Lock,
+  Mail,
   Shield,
   Key,
   User,
@@ -866,23 +867,31 @@ export function SettingsSheet({
                 </div>
 
                 {/* Email/Password Auth Form */}
-                <form onSubmit={handleEmailAuth} className="space-y-2">
-                  <input
-                    type="email"
-                    required
-                    placeholder="Email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
-                  />
-                  <input
-                    type="password"
-                    required
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
-                  />
+                <form onSubmit={handleEmailAuth} className="space-y-2.5">
+                  <div className="flex items-center bg-bg border border-line/60 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 rounded-xl px-3.5 py-2.5 shadow-2xs transition-all gap-2.5">
+                    <Mail className="w-4 h-4 text-muted shrink-0" />
+                    <input
+                      type="email"
+                      required
+                      autoComplete="email"
+                      placeholder="Email address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-transparent text-sm text-text outline-none p-0 placeholder:text-muted/60"
+                    />
+                  </div>
+                  <div className="flex items-center bg-bg border border-line/60 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 rounded-xl px-3.5 py-2.5 shadow-2xs transition-all gap-2.5">
+                    <Lock className="w-4 h-4 text-muted shrink-0" />
+                    <input
+                      type="password"
+                      required
+                      autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+                      placeholder="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-transparent text-sm text-text outline-none p-0 placeholder:text-muted/60"
+                    />
+                  </div>
                   <div className="flex gap-2 pt-1">
                     <button
                       type="submit"

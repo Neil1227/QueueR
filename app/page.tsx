@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardInput, CardCategory } from '@/lib/schema';
 import { useAuth } from '@/hooks/useAuth';
 import { useCards } from '@/hooks/useCards';
@@ -19,7 +20,8 @@ import {
 } from '@/lib/cards';
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, loading: authLoading, isGuest } = useAuth();
   const { theme, setTheme } = useTheme();
   const {
     cards,
@@ -35,6 +37,13 @@ export default function HomePage() {
     unlockE2EE,
     lockE2EE,
   } = useCards(user?.uid);
+
+  // Redirect to /login if unauthenticated and not in guest mode
+  useEffect(() => {
+    if (!authLoading && !user && !isGuest) {
+      router.replace('/login');
+    }
+  }, [authLoading, user, isGuest, router]);
 
   const {
     isLocked,
@@ -136,6 +145,14 @@ export default function HomePage() {
   };
 
   const isAnyOverlayActive = Boolean(receiveCard || isEditorOpen || isSettingsOpen || isLocked);
+
+  if (authLoading || (!user && !isGuest)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg text-text">
+        <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-bg">
