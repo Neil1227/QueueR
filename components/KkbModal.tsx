@@ -7,7 +7,6 @@ import {
   generateKKBTextRequest,
   generateKKBReceiptCanvas,
   KKBRoundingMode,
-  TIP_PRESETS,
   PAX_PRESETS,
 } from '@/lib/kkb';
 import { downloadCanvasAsPNG, shareOrDownloadImage } from '@/lib/image-share';
@@ -18,13 +17,10 @@ import {
   Receipt,
   Plus,
   Minus,
-  Sparkles,
   Copy,
   Share2,
-  Download,
   Coins,
   QrCode,
-  Percent,
   Check,
 } from 'lucide-react';
 
@@ -47,9 +43,6 @@ export function KkbModal({
 
   const [billStr, setBillStr] = useState(initialAmount ? String(initialAmount) : '');
   const [pax, setPax] = useState<number>(2);
-  const [tipPercent, setTipPercent] = useState<number>(0);
-  const [customTipStr, setCustomTipStr] = useState<string>('');
-  const [isCustomTip, setIsCustomTip] = useState(false);
   const [rounding, setRounding] = useState<KKBRoundingMode>('exact');
   const [noteStr, setNoteStr] = useState('');
   const [isExporting, setIsExporting] = useState(false);
@@ -57,18 +50,15 @@ export function KkbModal({
 
   // Parse numeric values
   const numericBill = Math.max(0, parseFloat(billStr) || 0);
-  const numericCustomTip = Math.max(0, parseFloat(customTipStr) || 0);
 
   // Compute live KKB result
   const kkbResult = useMemo(() => {
     return computeKKB({
       totalBill: numericBill,
-      tipPercent: isCustomTip ? 0 : tipPercent,
-      customTip: isCustomTip ? numericCustomTip : 0,
       pax,
       rounding,
     });
-  }, [numericBill, isCustomTip, tipPercent, numericCustomTip, pax, rounding]);
+  }, [numericBill, pax, rounding]);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -129,23 +119,6 @@ export function KkbModal({
       showToast('Receipt ready');
     } catch {
       showToast('Failed to generate receipt');
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleDownloadReceipt = async () => {
-    if (kkbResult.roundedShare <= 0) {
-      showToast('Enter total bill amount first');
-      return;
-    }
-    setIsExporting(true);
-    try {
-      const receiptCanvas = await generateKKBReceiptCanvas(card, kkbResult, noteStr);
-      downloadCanvasAsPNG(receiptCanvas, `${card.provider.toLowerCase()}-kkb-receipt.png`);
-      showToast('Receipt saved to Downloads');
-    } catch {
-      showToast('Download failed');
     } finally {
       setIsExporting(false);
     }
@@ -277,71 +250,6 @@ export function KkbModal({
             </div>
           </div>
 
-          {/* Tip / Service Fee Selection */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-text/80 flex items-center gap-1.5">
-                <Percent className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Tip / Service Charge / Fee</span>
-              </label>
-              {kkbResult.tipAmount > 0 && (
-                <span className="text-xs font-mono font-medium text-emerald-500">
-                  +₱{kkbResult.tipAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                </span>
-              )}
-            </div>
-
-            <div className="grid grid-cols-5 gap-1.5">
-              {TIP_PRESETS.map((t) => {
-                const isSelected = !isCustomTip && tipPercent === t.value;
-                return (
-                  <button
-                    key={t.value}
-                    type="button"
-                    onClick={() => {
-                      setIsCustomTip(false);
-                      setTipPercent(t.value);
-                    }}
-                    className={`py-2 px-1 rounded-xl text-xs font-semibold text-center border transition-all active:scale-95 cursor-pointer truncate ${
-                      isSelected
-                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500 shadow-sm'
-                        : 'bg-bg text-text/80 border-line/40 hover:border-line'
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => setIsCustomTip(true)}
-                className={`py-2 px-1 rounded-xl text-xs font-semibold text-center border transition-all active:scale-95 cursor-pointer truncate ${
-                  isCustomTip
-                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500 shadow-sm'
-                    : 'bg-bg text-text/80 border-line/40 hover:border-line'
-                }`}
-              >
-                Custom ₱
-              </button>
-            </div>
-
-            {isCustomTip && (
-              <div className="mt-2 flex items-center bg-bg border border-line/60 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl px-3 py-2 text-sm shadow-sm transition-all">
-                <span className="font-bold text-text/75 mr-2">₱</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={customTipStr}
-                  onChange={(e) => setCustomTipStr(e.target.value)}
-                  placeholder="Enter extra fee amount (e.g. 150)"
-                  className="w-full bg-transparent outline-none text-text text-sm p-0 placeholder:text-muted/60"
-                  autoFocus
-                />
-              </div>
-            )}
-          </div>
-
           {/* Rounding Mode Options */}
           <div>
             <label className="block text-xs font-semibold text-text/80 mb-1.5 flex items-center gap-1.5">
@@ -398,9 +306,9 @@ export function KkbModal({
           {/* Live Calculation Highlight Card */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-accent/10 via-surface to-accent/5 border border-accent/30 shadow-inner">
             <div className="flex items-center justify-between text-xs text-muted mb-2">
-              <span>Grand Total ({pax} pax)</span>
+              <span>Total Bill ({pax} pax)</span>
               <span className="font-mono font-semibold text-text">
-                ₱{kkbResult.grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{kkbResult.totalBill.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </span>
             </div>
 
@@ -410,7 +318,7 @@ export function KkbModal({
                   Each Person Pays
                 </span>
                 <span className="text-[11px] text-muted/80">
-                  (₱{kkbResult.grandTotal.toFixed(2)} ÷ {pax} pax)
+                  (₱{kkbResult.totalBill.toFixed(2)} ÷ {pax} pax)
                 </span>
               </div>
               <div className="text-right">

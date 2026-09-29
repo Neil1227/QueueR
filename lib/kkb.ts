@@ -1,13 +1,12 @@
 /**
  * KKB (Kanya-Kanyang Bayad) Smart Bill Splitter Engine
- * Handles bill calculations, tip/service charges, pax splitting, rounding modes,
+ * Handles bill calculations, pax splitting, rounding modes,
  * text request formatting for group chats, and 1080x1350 canvas receipt generation.
  */
 
 import { Card } from './schema';
 import { fgFor, getCardGradientColors } from './colors';
 import { drawQR, loadBitmap } from './qr';
-import { formatPreviewNumber } from './cards';
 import { findBankBrand, getBankLogoUrl } from './bank-logos';
 import { embedAmountInQRPh, isEMVCoPayload } from './qr-ph';
 
@@ -15,18 +14,12 @@ export type KKBRoundingMode = 'exact' | 'up_1' | 'up_5' | 'up_10';
 
 export interface KKBInput {
   totalBill: number;
-  tipPercent?: number;
-  customTip?: number;
   pax: number;
   rounding?: KKBRoundingMode;
 }
 
 export interface KKBResult {
-  subtotal: number;
-  tipPercent: number;
-  tipAmount: number;
-  customTip: number;
-  grandTotal: number;
+  totalBill: number;
   pax: number;
   rawShare: number;
   roundedShare: number;
@@ -34,28 +27,17 @@ export interface KKBResult {
   roundingDiff: number;
 }
 
-export const TIP_PRESETS = [
-  { label: '0%', value: 0 },
-  { label: '5%', value: 5 },
-  { label: '10%', value: 10 },
-  { label: '12% VAT', value: 12 },
-];
-
 export const PAX_PRESETS = [2, 3, 4, 5, 6, 8, 10];
 
 /**
- * Calculates bill split, tips, fees, and per-person shares with rounding.
+ * Calculates bill split and per-person shares with rounding.
  */
 export function computeKKB(input: KKBInput): KKBResult {
-  const subtotal = Math.max(0, input.totalBill || 0);
+  const totalBill = Math.max(0, input.totalBill || 0);
   const pax = Math.max(1, Math.floor(input.pax || 1));
-  const tipPercent = Math.max(0, input.tipPercent || 0);
-  const customTip = Math.max(0, input.customTip || 0);
   const roundingMode = input.rounding || 'exact';
 
-  const tipAmount = tipPercent > 0 ? (subtotal * tipPercent) / 100 : 0;
-  const grandTotal = subtotal + tipAmount + customTip;
-  const rawShare = pax > 0 ? grandTotal / pax : 0;
+  const rawShare = pax > 0 ? totalBill / pax : 0;
 
   let roundedShare = rawShare;
   switch (roundingMode) {
@@ -75,14 +57,10 @@ export function computeKKB(input: KKBInput): KKBResult {
       break;
   }
 
-  const roundingDiff = Math.max(0, roundedShare * pax - grandTotal);
+  const roundingDiff = Math.max(0, roundedShare * pax - totalBill);
 
   return {
-    subtotal,
-    tipPercent,
-    tipAmount,
-    customTip,
-    grandTotal,
+    totalBill,
     pax,
     rawShare,
     roundedShare,
@@ -99,24 +77,15 @@ export function generateKKBTextRequest(
   result: KKBResult,
   note?: string | null
 ): string {
-  const formattedSubtotal = `₱${result.subtotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-  const formattedGrandTotal = `₱${result.grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+  const formattedTotal = `₱${result.totalBill.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
   const formattedShare = `₱${result.roundedShare.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-
-  const tipLine =
-    result.tipAmount > 0
-      ? `\n• Service / Tip (${result.tipPercent}%): ₱${result.tipAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
-      : result.customTip > 0
-      ? `\n• Extra Fee: ₱${result.customTip.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
-      : '';
 
   const noteLine = note?.trim() ? `\n📝 Note: "${note.trim()}"` : '';
 
   return `🍽️ KKB Bill Split (${result.pax} people)
 ━━━━━━━━━━━━━━━━━━━━━
-🧾 Bill Breakdown:
-• Total Bill: ${formattedSubtotal}${tipLine}
-• Grand Total: ${formattedGrandTotal}
+🧾 Total Bill: ${formattedTotal}
+👥 Split: ${result.pax} people
 ━━━━━━━━━━━━━━━━━━━━━
 👉 YOUR SHARE: ${formattedShare} / person
 ━━━━━━━━━━━━━━━━━━━━━
@@ -299,22 +268,9 @@ export async function generateKKBReceiptCanvas(
   ctx.textAlign = 'right';
   ctx.fillStyle = '#1D1D1F';
   ctx.font = '600 24px Inter, sans-serif';
-  ctx.fillText(`₱${result.subtotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, rowRightX, innerY);
+  ctx.fillText(`₱${result.totalBill.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, rowRightX, innerY);
 
-  innerY += 36;
-
-  if (result.tipAmount > 0 || result.customTip > 0) {
-    ctx.font = '500 24px Inter, sans-serif';
-    ctx.fillStyle = '#6E6E73';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Tip / Service Fee (${result.tipPercent}%)`, rowLeftX, innerY);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#1D1D1F';
-    ctx.font = '600 24px Inter, sans-serif';
-    const tipVal = result.tipAmount > 0 ? result.tipAmount : result.customTip;
-    ctx.fillText(`+₱${tipVal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, rowRightX, innerY);
-    innerY += 36;
-  }
+  innerY += 40;
 
   ctx.font = '500 24px Inter, sans-serif';
   ctx.fillStyle = '#6E6E73';

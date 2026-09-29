@@ -20,35 +20,18 @@ describe('KKB Bill Splitter Engine', () => {
     v: 1,
   };
 
-  it('correctly calculates equal split with no tip', () => {
+  it('correctly calculates equal split', () => {
     const result = computeKKB({
       totalBill: 1200,
       pax: 4,
       rounding: 'exact',
     });
 
-    expect(result.subtotal).toBe(1200);
-    expect(result.tipAmount).toBe(0);
-    expect(result.grandTotal).toBe(1200);
+    expect(result.totalBill).toBe(1200);
     expect(result.pax).toBe(4);
     expect(result.rawShare).toBe(300);
     expect(result.roundedShare).toBe(300);
     expect(result.roundingDiff).toBe(0);
-  });
-
-  it('correctly calculates percentage tip and split', () => {
-    const result = computeKKB({
-      totalBill: 1000,
-      tipPercent: 10,
-      pax: 4,
-      rounding: 'exact',
-    });
-
-    expect(result.subtotal).toBe(1000);
-    expect(result.tipPercent).toBe(10);
-    expect(result.tipAmount).toBe(100);
-    expect(result.grandTotal).toBe(1100);
-    expect(result.roundedShare).toBe(275);
   });
 
   it('handles centavo precision under exact rounding', () => {
@@ -95,17 +78,6 @@ describe('KKB Bill Splitter Engine', () => {
     expect(result.roundedShare).toBe(370);
   });
 
-  it('handles custom tip/extra fee', () => {
-    const result = computeKKB({
-      totalBill: 800,
-      customTip: 150,
-      pax: 2,
-    });
-
-    expect(result.grandTotal).toBe(950);
-    expect(result.roundedShare).toBe(475);
-  });
-
   it('handles minimum pax edge case (pax = 0 or negative)', () => {
     const result = computeKKB({
       totalBill: 500,
@@ -119,7 +91,6 @@ describe('KKB Bill Splitter Engine', () => {
   it('generates a clean clipboard-ready text summary', () => {
     const result = computeKKB({
       totalBill: 1450,
-      tipPercent: 10,
       pax: 4,
       rounding: 'exact',
     });
@@ -127,9 +98,8 @@ describe('KKB Bill Splitter Engine', () => {
     const text = generateKKBTextRequest(dummyCard, result, 'Dinner with Team');
     expect(text).toContain('KKB Bill Split (4 people)');
     expect(text).toContain('Total Bill: ₱1,450.00');
-    expect(text).toContain('Service / Tip (10%): ₱145.00');
-    expect(text).toContain('Grand Total: ₱1,595.00');
-    expect(text).toContain('YOUR SHARE: ₱398.75 / person');
+    expect(text).toContain('Split: 4 people');
+    expect(text).toContain('YOUR SHARE: ₱362.50 / person');
     expect(text).toContain('GCash');
     expect(text).toContain('Juan Dela Cruz');
     expect(text).toContain('0917 123 4567');
