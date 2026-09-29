@@ -250,13 +250,13 @@ export function KkbModal({
             </div>
           </div>
 
-          {/* Rounding Mode Options */}
+          {/* Rounding Mode Options (2 Columns) */}
           <div>
             <label className="block text-xs font-semibold text-text/80 mb-1.5 flex items-center gap-1.5">
               <Coins className="w-3.5 h-3.5 text-amber-500" />
               <span>Centavo Rounding</span>
             </label>
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 gap-2">
               {(
                 [
                   { id: 'exact', label: 'Exact .00' },
@@ -271,13 +271,13 @@ export function KkbModal({
                     key={r.id}
                     type="button"
                     onClick={() => setRounding(r.id)}
-                    className={`py-1.5 px-1 rounded-xl text-xs font-semibold text-center border transition-all active:scale-95 cursor-pointer truncate ${
+                    className={`py-2.5 px-3 rounded-xl text-xs font-semibold text-center border transition-all active:scale-95 cursor-pointer ${
                       isSelected
-                        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500 shadow-sm'
+                        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500 shadow-sm ring-1 ring-amber-500/30'
                         : 'bg-bg text-text/80 border-line/40 hover:border-line'
                     }`}
                   >
-                    {r.label}
+                    <span>{r.label}</span>
                   </button>
                 );
               })}
