@@ -29,16 +29,18 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
+import { getAnalytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
 import { Card, CardSchema, UserMeta, UserMetaSchema } from './schema';
 import { setCachedCards, getCachedCards } from './cards';
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyACicWbUFCC8ncz6t8Ga0eDmDsN1vbwWys',
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'queuer-58b67.firebaseapp.com',
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'queuer-58b67',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'queuer-58b67.firebasestorage.app',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '13539943246',
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:13539943246:web:c4e4f1bb647079cfdff41f',
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-BX5Q2TY8L7',
 };
 
 export const isFirebaseConfigured = Boolean(
@@ -74,6 +76,15 @@ if (typeof window !== 'undefined' && isFirebaseConfigured) {
         db = null;
       }
     }
+
+    // Optional Analytics (Client-side only)
+    isAnalyticsSupported()
+      .then((supported) => {
+        if (supported && app) {
+          getAnalytics(app);
+        }
+      })
+      .catch(() => {});
   } catch (err) {
     console.error('Firebase initialization error:', err);
   }

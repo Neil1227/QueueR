@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from './Toast';
 import { PreviewNumberFormat } from '@/lib/cards';
@@ -910,6 +911,17 @@ export function SettingsSheet({
                     Continue as Guest (Local Offline)
                   </button>
                 )}
+
+                <div className="text-center pt-1">
+                  <Link
+                    href="/login"
+                    onClick={onClose}
+                    className="text-xs text-accent font-medium hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>Open full login page</span>
+                    <span>→</span>
+                  </Link>
+                </div>
               </div>
             )}
           </section>
