@@ -29,7 +29,6 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
-import { getAnalytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
 import { Card, CardSchema, UserMeta, UserMetaSchema } from './schema';
 import { setCachedCards, getCachedCards } from './cards';
 
@@ -77,14 +76,18 @@ if (typeof window !== 'undefined' && isFirebaseConfigured) {
       }
     }
 
-    // Optional Analytics (Client-side only)
-    isAnalyticsSupported()
-      .then((supported) => {
-        if (supported && app) {
-          getAnalytics(app);
-        }
-      })
-      .catch(() => {});
+    // Optional Analytics (Client-side dynamic load)
+    if (firebaseConfig.measurementId) {
+      import('firebase/analytics')
+        .then(({ getAnalytics, isSupported }) => {
+          isSupported().then((supported) => {
+            if (supported && app) {
+              getAnalytics(app);
+            }
+          });
+        })
+        .catch(() => {});
+    }
   } catch (err) {
     console.error('Firebase initialization error:', err);
   }
