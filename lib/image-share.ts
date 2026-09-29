@@ -13,10 +13,13 @@ import { fgFor, getCardGradientColors } from './colors';
 import { drawQR, loadBitmap } from './qr';
 import { formatPreviewNumber, PreviewNumberFormat } from './cards';
 import { findBankBrand, getBankLogoUrl } from './bank-logos';
+import { embedAmountInQRPh, isEMVCoPayload } from './qr-ph';
 
 export interface ImageShareOptions {
   numberFormat?: PreviewNumberFormat;
   footerText?: string;
+  requestedAmount?: number | null;
+  requestedNote?: string | null;
 }
 
 export const CANVAS_WIDTH = 1080;
@@ -161,9 +164,20 @@ export async function generateShareCanvas(
   const qrX = boxX + qrPadding;
   const qrY = boxY + qrPadding;
 
-  if (card.payload) {
+  let payloadToDraw = card.payload;
+  if (card.payload && options.requestedAmount && options.requestedAmount > 0) {
+    if (isEMVCoPayload(card.payload)) {
+      payloadToDraw = embedAmountInQRPh(
+        card.payload,
+        options.requestedAmount,
+        options.requestedNote || undefined
+      );
+    }
+  }
+
+  if (payloadToDraw) {
     const tempCanvas = document.createElement('canvas');
-    drawQR(tempCanvas, card.payload, qrInnerSize);
+    drawQR(tempCanvas, payloadToDraw, qrInnerSize);
     ctx.drawImage(tempCanvas, qrX, qrY, qrInnerSize, qrInnerSize);
   } else if (card.imgB64) {
     try {
@@ -180,8 +194,38 @@ export async function generateShareCanvas(
     }
   }
 
-  // 4. Details Below QR (Holder Name & Formatted Number)
-  let currentY = boxY + boxSize + 70;
+  // 4. Details Below QR (Requested Amount, Holder Name & Formatted Number)
+  let currentY = boxY + boxSize + 55;
+
+  // Requested Amount Badge (if set)
+  if (options.requestedAmount && options.requestedAmount > 0) {
+    const amountText = `₱${options.requestedAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+    const noteText = options.requestedNote ? ` · "${options.requestedNote}"` : '';
+    const badgeText = `${amountText}${noteText}`;
+
+    ctx.save();
+    ctx.font = '700 36px Inter, sans-serif';
+    const textWidth = ctx.measureText(badgeText).width;
+    const badgeW = textWidth + 60;
+    const badgeH = 56;
+    const badgeX = (CANVAS_WIDTH - badgeW) / 2;
+    const badgeY = currentY - 10;
+
+    ctx.fillStyle = fg === '#FFFFFF' ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.12)';
+    roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 28);
+    ctx.fill();
+    ctx.strokeStyle = fg === '#FFFFFF' ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.18)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(badgeText, CANVAS_WIDTH / 2, badgeY + badgeH / 2);
+    ctx.restore();
+
+    currentY += 68;
+  }
 
   // Holder Name
   if (card.holder) {

@@ -10,6 +10,8 @@ import { useToast } from './Toast';
 import { isBlurPrivacyEnabled } from '@/lib/app-lock';
 import { generateShareCanvas, shareOrDownloadImage, downloadCanvasAsPNG } from '@/lib/image-share';
 import { BankLogo } from './BankLogo';
+import { AmountModal } from './AmountModal';
+import { embedAmountInQRPh, isEMVCoPayload, parseQRPh } from '@/lib/qr-ph';
 import {
   Sun,
   X,
@@ -21,6 +23,7 @@ import {
   Eye,
   EyeOff,
   AlertTriangle,
+  Banknote,
 } from 'lucide-react';
 
 const HIDE_BRIGHTNESS_HINT_KEY = 'qr_wallet_hide_brightness_hint_v1';
@@ -40,6 +43,11 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
   const [blurPrivacy, setBlurPrivacy] = useState(false);
   const [qrUnblurred, setQrUnblurred] = useState(false);
 
+  // Amount Embedding State
+  const [requestedAmount, setRequestedAmount] = useState<number | null>(null);
+  const [requestedNote, setRequestedNote] = useState<string | null>(null);
+  const [isAmountModalOpen, setIsAmountModalOpen] = useState(false);
+
   // Share Image Modal State
   const [isShareImageModalOpen, setIsShareImageModalOpen] = useState(false);
   const [shareImageNumberFormat, setShareImageNumberFormat] = useState<PreviewNumberFormat>('last4');
@@ -51,6 +59,17 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { acquire: acquireWakeLock, release: releaseWakeLock } = useWakeLock();
   const { showToast } = useToast();
+
+  const isQRPh = Boolean(card?.payload && isEMVCoPayload(card.payload));
+
+  // Compute payload with embedded amount if requested
+  const effectivePayload = React.useMemo(() => {
+    if (!card?.payload) return null;
+    if (requestedAmount && requestedAmount > 0 && isQRPh) {
+      return embedAmountInQRPh(card.payload, requestedAmount, requestedNote || undefined);
+    }
+    return card.payload;
+  }, [card?.payload, requestedAmount, requestedNote, isQRPh]);
 
   // Load preferences
   useEffect(() => {
@@ -65,6 +84,16 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
       setQrUnblurred(false);
       acquireWakeLock();
 
+      // Check if original payload already contains a pre-set amount
+      if (card.payload && isEMVCoPayload(card.payload)) {
+        const parsed = parseQRPh(card.payload);
+        setRequestedAmount(parsed.amount || null);
+        setRequestedNote(parsed.note || null);
+      } else {
+        setRequestedAmount(null);
+        setRequestedNote(null);
+      }
+
       if (!hideHint) {
         setShowBrightnessHint(true);
         const timer = setTimeout(() => {
@@ -76,15 +105,16 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
       releaseWakeLock();
       setShowBrightnessHint(false);
       setIsShareImageModalOpen(false);
+      setIsAmountModalOpen(false);
     }
   }, [isOpen, card, acquireWakeLock, releaseWakeLock]);
 
-  // Re-draw QR on canvas when card or scan mode changes
+  // Re-draw QR on canvas when card or payload changes
   useEffect(() => {
-    if (isOpen && card?.payload && canvasRef.current) {
-      drawQR(canvasRef.current, card.payload, 720);
+    if (isOpen && effectivePayload && canvasRef.current) {
+      drawQR(canvasRef.current, effectivePayload, 720);
     }
-  }, [isOpen, card, scanMode]);
+  }, [isOpen, effectivePayload, scanMode]);
 
   const handleToggleScanMode = () => {
     const next = !scanMode;
@@ -113,7 +143,13 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
 
   const handleShareDetails = useCallback(async () => {
     if (!card) return;
-    const text = [card.provider, card.holder, card.number].filter(Boolean).join('\n');
+    const parts = [card.provider, card.holder, card.number];
+    if (requestedAmount && requestedAmount > 0) {
+      const amtStr = `Amount: ₱${requestedAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+      const noteStr = requestedNote ? ` (${requestedNote})` : '';
+      parts.unshift(`${amtStr}${noteStr}`);
+    }
+    const text = parts.filter(Boolean).join('\n');
 
     try {
       if (typeof navigator !== 'undefined' && navigator.share) {
@@ -130,7 +166,7 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
         showToast("Sharing isn't available here");
       }
     }
-  }, [card, showToast]);
+  }, [card, requestedAmount, requestedNote, showToast]);
 
   // Generate Image Preview
   const handleOpenShareImageModal = async () => {
@@ -141,6 +177,8 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
       const shareCanvas = await generateShareCanvas(card, {
         numberFormat: shareImageNumberFormat,
         footerText: shareFooterText,
+        requestedAmount,
+        requestedNote,
       });
       setSharePreviewUrl(shareCanvas.toDataURL('image/png'));
     } catch (err) {
@@ -164,6 +202,8 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
         const shareCanvas = await generateShareCanvas(card, {
           numberFormat: format,
           footerText: shareFooterText,
+          requestedAmount,
+          requestedNote,
         });
         setSharePreviewUrl(shareCanvas.toDataURL('image/png'));
       } finally {
@@ -178,6 +218,8 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
       const shareCanvas = await generateShareCanvas(card, {
         numberFormat: shareImageNumberFormat,
         footerText: text,
+        requestedAmount,
+        requestedNote,
       });
       setSharePreviewUrl(shareCanvas.toDataURL('image/png'));
     }
@@ -189,6 +231,8 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
       const shareCanvas = await generateShareCanvas(card, {
         numberFormat: shareImageNumberFormat,
         footerText: shareFooterText,
+        requestedAmount,
+        requestedNote,
       });
       const result = await shareOrDownloadImage(shareCanvas, card.provider);
       if (result.downloaded) {
@@ -208,6 +252,8 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
       const shareCanvas = await generateShareCanvas(card, {
         numberFormat: shareImageNumberFormat,
         footerText: shareFooterText,
+        requestedAmount,
+        requestedNote,
       });
       downloadCanvasAsPNG(shareCanvas, `${card.provider.toLowerCase()}-qr.png`);
       showToast('Image saved');
@@ -352,6 +398,66 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
             <Eye className="w-8 h-8 text-[#1D1D1F] mb-1" />
             <span className="text-xs font-semibold text-[#1D1D1F]">Tap to reveal QR</span>
           </div>
+        )}
+      </div>
+
+      {/* Amount Request Pill */}
+      <div className="mt-0 mb-4 flex items-center justify-center">
+        {requestedAmount && requestedAmount > 0 ? (
+          <div
+            style={{
+              color: fg,
+              backgroundColor: fg === '#1D1D1F' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.22)',
+              border: fg === '#1D1D1F' ? '1px solid rgba(0, 0, 0, 0.14)' : '1px solid rgba(255, 255, 255, 0.3)',
+            }}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-sm animate-fade-in text-sm font-semibold"
+          >
+            <Banknote className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="tabular-nums font-bold">
+              ₱{requestedAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+            </span>
+            {requestedNote && (
+              <span className="opacity-80 font-normal truncate max-w-[110px]">
+                · &quot;{requestedNote}&quot;
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsAmountModalOpen(true)}
+              aria-label="Edit requested amount"
+              title="Edit amount"
+              className="p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/15 transition-colors cursor-pointer ml-0.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setRequestedAmount(null);
+                setRequestedNote(null);
+                showToast('Amount cleared');
+              }}
+              aria-label="Clear requested amount"
+              title="Clear amount"
+              className="p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/15 transition-colors cursor-pointer text-red-500 hover:text-red-600"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsAmountModalOpen(true)}
+            style={{
+              color: fg,
+              backgroundColor: fg === '#1D1D1F' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.16)',
+              border: fg === '#1D1D1F' ? '1px dashed rgba(0, 0, 0, 0.2)' : '1px dashed rgba(255, 255, 255, 0.35)',
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-sm hover:brightness-95 active:scale-95 transition-all text-xs sm:text-sm font-medium cursor-pointer"
+          >
+            <Banknote className="w-3.5 h-3.5 opacity-90 text-emerald-400 shrink-0" />
+            <span>+ Request Exact Amount</span>
+          </button>
         )}
       </div>
 
@@ -537,6 +643,24 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
           </div>
         </div>
       )}
+
+      {/* Amount Request Modal */}
+      <AmountModal
+        isOpen={isAmountModalOpen}
+        currentAmount={requestedAmount}
+        currentNote={requestedNote}
+        onClose={() => setIsAmountModalOpen(false)}
+        onApply={(amt, note) => {
+          setRequestedAmount(amt);
+          setRequestedNote(note || null);
+          showToast(`₱${amt.toLocaleString('en-PH', { minimumFractionDigits: 2 })} embedded in QR`);
+        }}
+        onClear={() => {
+          setRequestedAmount(null);
+          setRequestedNote(null);
+          showToast('Amount cleared from QR');
+        }}
+      />
     </div>
   );
 }
