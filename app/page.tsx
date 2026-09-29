@@ -138,16 +138,29 @@ export default function HomePage() {
   const isAnyOverlayActive = Boolean(receiveCard || isEditorOpen || isSettingsOpen || isLocked);
 
   return (
-    <div className="relative min-h-screen bg-bg">
-      {/* Main Card Stack */}
-      <CardStack
-        cards={cards}
-        numberFormat={numberFormat}
-        hideAddButton={isAnyOverlayActive}
-        onOpenCard={handleOpenReceive}
-        onAddCard={handleAddNewCard}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-      />
+    <div className="relative min-h-screen bg-bg overflow-x-hidden transition-colors selection:bg-accent/20">
+      {/* Minimalist Ambient Glow Meshes */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-blue-500/10 dark:bg-blue-400/10 blur-[100px] transform-gpu" />
+        <div className="absolute top-1/3 -left-32 w-80 h-80 rounded-full bg-indigo-500/8 dark:bg-indigo-400/8 blur-[110px] transform-gpu" />
+        <div className="absolute -bottom-24 right-1/4 w-88 h-88 rounded-full bg-sky-450/8 dark:bg-sky-500/8 blur-[100px] transform-gpu" />
+      </div>
+
+      {/* Tactile Dot Grid Overlay */}
+      <div className="fixed inset-0 bg-dot-grid pointer-events-none z-0" aria-hidden="true" />
+
+      {/* Main App Content */}
+      <div className="relative z-10">
+        {/* Main Card Stack */}
+        <CardStack
+          cards={cards}
+          numberFormat={numberFormat}
+          hideAddButton={isAnyOverlayActive}
+          onOpenCard={handleOpenReceive}
+          onAddCard={handleAddNewCard}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
+      </div>
 
       {/* Receive View Sheet */}
       <ReceiveSheet
@@ -165,6 +178,7 @@ export default function HomePage() {
         onClose={handleCloseEditor}
         onSave={handleSaveCard}
         onDelete={handleDeleteCard}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Settings & Account Sheet */}

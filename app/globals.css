@@ -98,6 +98,18 @@ body {
   }
 }
 
+/* Minimalist Tactile Background Grid */
+.bg-dot-grid {
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.055) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
+[data-theme="dark"] .bg-dot-grid,
+:root:not([data-theme="light"]) .bg-dot-grid {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.045) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
 /* Animations and Spring Transitions */
 .duration-450 {
   transition-duration: 450ms;
@@ -148,3 +160,4 @@ body {
     transition-duration: 150ms !important;
   }
 }
+

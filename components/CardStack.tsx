@@ -5,7 +5,7 @@ import { Card as CardType, CardCategory, CARD_CATEGORIES } from '@/lib/schema';
 import { bringToFront, PreviewNumberFormat } from '@/lib/cards';
 import { Card } from './Card';
 import { CategoryIcon } from './CategoryIcon';
-import { Settings, Plus, CreditCard, Sparkles, FolderPlus } from 'lucide-react';
+import { Settings, Plus, CreditCard, Sparkles, FolderPlus, QrCode } from 'lucide-react';
 
 interface CardStackProps {
   cards: CardType[];
@@ -102,8 +102,8 @@ export function CardStack({
 
   // Calculate visible peeking strips (up to 5 peeking strips above the front card)
   const totalStrips = Math.min(Math.max(0, deck.length - 1), 5);
-  // Container height = peeking header strips (56px each) + full front card height (210px)
-  const containerHeight = totalStrips * 56 + 210;
+  // Container height = peeking header strips (56px each) + full front card height (215px)
+  const containerHeight = totalStrips * 56 + 215;
 
   return (
     <div className="min-h-screen flex flex-col w-full max-w-lg mx-auto pb-[calc(100px+env(safe-area-inset-bottom,0px))]">
@@ -112,41 +112,62 @@ export function CardStack({
         {announcement}
       </div>
 
-      {/* Apple Wallet Navigation Header */}
-      <header className="px-5 pt-8 pb-2 flex items-baseline justify-between sticky top-0 bg-bg/85 backdrop-blur-xl z-40 transition-colors">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-[34px] font-bold tracking-tight text-text leading-tight">
-            QueueR
-          </h1>
-          {countText && <span className="text-sm font-medium text-muted">{countText}</span>}
+      {/* Redesigned Apple Wallet Navigation Header */}
+      <header className="px-5 pt-7 pb-3 flex items-center justify-between sticky top-0 bg-bg/80 backdrop-blur-2xl z-40 transition-colors border-b border-line/10">
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Brand Icon Badge */}
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-accent via-blue-600 to-indigo-600 p-[1px] shadow-[0_4px_14px_rgba(0,122,255,0.32)] flex items-center justify-center shrink-0">
+            <div className="w-full h-full rounded-[15px] bg-white/10 backdrop-blur-xs flex items-center justify-center">
+              <QrCode className="w-5 h-5 text-white stroke-[2.2]" />
+            </div>
+          </div>
+
+          <div className="min-w-0 truncate">
+            <div className="flex items-center gap-2">
+              <h1 className="text-[24px] font-extrabold tracking-tight text-text leading-none font-sans">
+                QueueR
+              </h1>
+              {countText && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface/90 text-muted border border-line/30 text-[11px] font-semibold shadow-2xs backdrop-blur-md">
+                  <CreditCard className="w-3 h-3 text-muted/80" />
+                  <span>{deck.length}</span>
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] font-medium text-muted mt-0.5 tracking-tight truncate">
+              Skip the queue · Flash your QueueR
+            </p>
+          </div>
         </div>
+
+        {/* Action Button: Settings */}
         <button
           type="button"
           onClick={onOpenSettings}
           aria-label="Open Settings"
-          className="p-2.5 rounded-full text-muted hover:text-text hover:bg-surface active:scale-95 transition-all shadow-sm border border-line/20 cursor-pointer"
+          className="w-10 h-10 rounded-2xl bg-surface/80 hover:bg-surface text-muted hover:text-text active:scale-95 transition-all shadow-xs border border-line/30 flex items-center justify-center cursor-pointer group shrink-0 ml-2"
         >
-          <Settings className="w-5 h-5" />
+          <Settings className="w-5 h-5 transition-transform duration-300 group-hover:rotate-45 text-text" />
         </button>
       </header>
 
       {/* Category Filter Chips Bar */}
       {cards.length > 0 && (
-        <div className="px-5 pt-1 pb-2 sticky top-[72px] bg-bg/85 backdrop-blur-xl z-30 transition-colors">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+        <div className="px-5 pt-2 pb-2 sticky top-[73px] bg-bg/80 backdrop-blur-xl z-30 transition-colors border-b border-line/10">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             <button
               type="button"
               onClick={() => setSelectedCategory('all')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-xs ${
                 selectedCategory === 'all'
-                  ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F]'
-                  : 'bg-surface text-muted hover:text-text border border-line/40'
+                  ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] border border-transparent shadow-sm'
+                  : 'bg-surface/80 hover:bg-surface text-muted hover:text-text border border-line/35'
               }`}
             >
               <CategoryIcon category="all" className="w-3.5 h-3.5" />
               <span>All</span>
               <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-medium ${
                   selectedCategory === 'all'
                     ? 'bg-white/20 dark:bg-black/20'
                     : 'bg-black/5 dark:bg-white/10'
@@ -168,16 +189,16 @@ export function CardStack({
                   key={cat.id}
                   type="button"
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm ${
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-xs ${
                     isSelected
-                      ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F]'
-                      : 'bg-surface text-muted hover:text-text border border-line/40'
+                      ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F] border border-transparent shadow-sm'
+                      : 'bg-surface/80 hover:bg-surface text-muted hover:text-text border border-line/35'
                   }`}
                 >
                   <CategoryIcon category={cat.id} className="w-3.5 h-3.5" />
                   <span>{cat.shortLabel}</span>
                   <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-medium ${
                       isSelected
                         ? 'bg-white/20 dark:bg-black/20'
                         : 'bg-black/5 dark:bg-white/10'
@@ -193,15 +214,15 @@ export function CardStack({
       )}
 
       {/* Card Deck Area */}
-      <main aria-label="Your payment cards deck" className="px-4 pt-3 flex-1">
+      <main aria-label="Your payment cards deck" className="px-4 pt-4 flex-1">
         {cards.length === 0 ? (
-          <div className="text-center py-24 px-6 text-muted space-y-4">
-            <div className="w-20 h-20 rounded-full bg-surface border border-line/40 mx-auto flex items-center justify-center text-muted shadow-sm">
-              <CreditCard className="w-10 h-10 opacity-60 text-accent" />
+          <div className="text-center py-20 px-6 text-muted space-y-4">
+            <div className="w-20 h-20 rounded-3xl bg-surface/90 border border-line/40 mx-auto flex items-center justify-center text-muted shadow-sm backdrop-blur-md">
+              <CreditCard className="w-10 h-10 opacity-70 text-accent" />
             </div>
             <div>
-              <b className="block text-xl font-semibold text-text">No Cards in QueueR</b>
-              <p className="text-sm leading-relaxed max-w-xs mx-auto mt-1 text-muted">
+              <b className="block text-xl font-bold text-text">No Cards in QueueR</b>
+              <p className="text-sm leading-relaxed max-w-xs mx-auto mt-1.5 text-muted">
                 Add your bank and e-wallet QR codes to show and receive payments in one tap.
               </p>
             </div>
@@ -209,11 +230,11 @@ export function CardStack({
         ) : deck.length === 0 ? (
           // Category-specific Empty State
           <div className="text-center py-16 px-6 text-muted space-y-4 animate-fade-in">
-            <div className="w-16 h-16 rounded-full bg-surface border border-line/40 mx-auto flex items-center justify-center text-accent shadow-sm">
+            <div className="w-16 h-16 rounded-3xl bg-surface/90 border border-line/40 mx-auto flex items-center justify-center text-accent shadow-sm backdrop-blur-md">
               <CategoryIcon category={selectedCategory} className="w-8 h-8" />
             </div>
             <div>
-              <b className="block text-lg font-semibold text-text">
+              <b className="block text-lg font-bold text-text">
                 No {currentCategoryMeta?.label || 'Category'} Cards
               </b>
               <p className="text-xs leading-relaxed max-w-xs mx-auto mt-1 text-muted">
@@ -264,16 +285,15 @@ export function CardStack({
             width: '56px',
             height: '56px',
             borderRadius: '50%',
-            backgroundColor: '#007AFF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 18px rgba(0, 122, 255, 0.45)',
-            border: '1px solid rgba(255, 255, 255, 0.25)',
+            boxShadow: '0 6px 22px rgba(0, 122, 255, 0.45)',
+            border: '1.5px solid rgba(255, 255, 255, 0.35)',
             zIndex: 30,
             cursor: 'pointer',
           }}
-          className="text-white hover:brightness-105 active:scale-[0.94] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2 transition-all duration-150"
+          className="bg-gradient-to-tr from-[#007AFF] to-[#0055D4] text-white hover:brightness-110 active:scale-[0.93] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2 transition-all duration-150"
         >
           <Plus className="w-6 h-6 text-white stroke-[2.5]" aria-hidden="true" />
         </button>
