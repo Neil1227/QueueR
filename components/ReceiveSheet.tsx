@@ -11,6 +11,7 @@ import { isBlurPrivacyEnabled } from '@/lib/app-lock';
 import { generateShareCanvas, shareOrDownloadImage, downloadCanvasAsPNG } from '@/lib/image-share';
 import { BankLogo } from './BankLogo';
 import { AmountModal } from './AmountModal';
+import { KkbModal } from './KkbModal';
 import { embedAmountInQRPh, isEMVCoPayload, parseQRPh } from '@/lib/qr-ph';
 import {
   Sun,
@@ -24,6 +25,8 @@ import {
   EyeOff,
   AlertTriangle,
   Banknote,
+  Users,
+  Receipt,
 } from 'lucide-react';
 
 const HIDE_BRIGHTNESS_HINT_KEY = 'qr_wallet_hide_brightness_hint_v1';
@@ -43,10 +46,11 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
   const [blurPrivacy, setBlurPrivacy] = useState(false);
   const [qrUnblurred, setQrUnblurred] = useState(false);
 
-  // Amount Embedding State
+  // Amount Embedding & KKB State
   const [requestedAmount, setRequestedAmount] = useState<number | null>(null);
   const [requestedNote, setRequestedNote] = useState<string | null>(null);
   const [isAmountModalOpen, setIsAmountModalOpen] = useState(false);
+  const [isKkbModalOpen, setIsKkbModalOpen] = useState(false);
 
   // Share Image Modal State
   const [isShareImageModalOpen, setIsShareImageModalOpen] = useState(false);
@@ -401,7 +405,7 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
         )}
       </div>
 
-      {/* Amount Request Pill */}
+      {/* Amount Request & KKB Split Pills */}
       <div className="mt-0 mb-4 flex items-center justify-center">
         {requestedAmount && requestedAmount > 0 ? (
           <div
@@ -412,19 +416,29 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
             }}
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-sm animate-fade-in text-sm font-semibold"
           >
-            <Banknote className="w-4 h-4 text-emerald-400 shrink-0" />
+            {requestedNote?.includes('pax') || requestedNote?.includes('KKB') ? (
+              <Users className="w-4 h-4 text-accent shrink-0" />
+            ) : (
+              <Banknote className="w-4 h-4 text-emerald-400 shrink-0" />
+            )}
             <span className="tabular-nums font-bold">
               ₱{requestedAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
             </span>
             {requestedNote && (
-              <span className="opacity-80 font-normal truncate max-w-[110px]">
-                · &quot;{requestedNote}&quot;
+              <span className="opacity-80 font-normal truncate max-w-[120px]">
+                · {requestedNote}
               </span>
             )}
             <button
               type="button"
-              onClick={() => setIsAmountModalOpen(true)}
-              aria-label="Edit requested amount"
+              onClick={() => {
+                if (requestedNote?.includes('pax') || requestedNote?.includes('KKB')) {
+                  setIsKkbModalOpen(true);
+                } else {
+                  setIsAmountModalOpen(true);
+                }
+              }}
+              aria-label="Edit requested amount or KKB split"
               title="Edit amount"
               className="p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/15 transition-colors cursor-pointer ml-0.5"
             >
@@ -445,19 +459,35 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setIsAmountModalOpen(true)}
-            style={{
-              color: fg,
-              backgroundColor: fg === '#1D1D1F' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.16)',
-              border: fg === '#1D1D1F' ? '1px dashed rgba(0, 0, 0, 0.2)' : '1px dashed rgba(255, 255, 255, 0.35)',
-            }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-sm hover:brightness-95 active:scale-95 transition-all text-xs sm:text-sm font-medium cursor-pointer"
-          >
-            <Banknote className="w-3.5 h-3.5 opacity-90 text-emerald-400 shrink-0" />
-            <span>+ Request Exact Amount</span>
-          </button>
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+            <button
+              type="button"
+              onClick={() => setIsAmountModalOpen(true)}
+              style={{
+                color: fg,
+                backgroundColor: fg === '#1D1D1F' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.16)',
+                border: fg === '#1D1D1F' ? '1px dashed rgba(0, 0, 0, 0.2)' : '1px dashed rgba(255, 255, 255, 0.35)',
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-sm hover:brightness-95 active:scale-95 transition-all text-xs sm:text-sm font-medium cursor-pointer"
+            >
+              <Banknote className="w-3.5 h-3.5 opacity-90 text-emerald-400 shrink-0" />
+              <span>+ Request Amount</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsKkbModalOpen(true)}
+              style={{
+                color: fg,
+                backgroundColor: fg === '#1D1D1F' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.16)',
+                border: fg === '#1D1D1F' ? '1px dashed rgba(0, 0, 0, 0.2)' : '1px dashed rgba(255, 255, 255, 0.35)',
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-sm hover:brightness-95 active:scale-95 transition-all text-xs sm:text-sm font-medium cursor-pointer"
+            >
+              <Users className="w-3.5 h-3.5 opacity-90 text-accent shrink-0" />
+              <span>Split Bill (KKB)</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -659,6 +689,18 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
           setRequestedAmount(null);
           setRequestedNote(null);
           showToast('Amount cleared from QR');
+        }}
+      />
+
+      {/* KKB Bill Splitter Modal */}
+      <KkbModal
+        isOpen={isKkbModalOpen}
+        card={card}
+        initialAmount={requestedAmount}
+        onClose={() => setIsKkbModalOpen(false)}
+        onApplyToQR={(amt, note) => {
+          setRequestedAmount(amt);
+          setRequestedNote(note);
         }}
       />
     </div>
