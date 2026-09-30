@@ -18,6 +18,7 @@ import {
 } from '@/lib/cards';
 import { mergeCards } from '@/lib/backup';
 import { deriveKey, encryptText, decryptText, generateSalt } from '@/lib/crypto';
+import { DEMO_CARDS, DEMO_USER_ID, isDemoActive } from '@/lib/demo';
 
 export function useCards(userId?: string | null) {
   const [cards, setCards] = useState<Card[]>([]);
@@ -28,6 +29,13 @@ export function useCards(userId?: string | null) {
 
   // Subscribe to cards from Firestore & load local cache
   useEffect(() => {
+    // 1. If Demo Mode is active, supply rich curated demo cards
+    if (userId === DEMO_USER_ID || isDemoActive()) {
+      setCards(sortCards(DEMO_CARDS));
+      setLoading(false);
+      return;
+    }
+
     const cached = getCachedCards();
     if (cached.length > 0) {
       setCards(sortCards(cached));
@@ -50,14 +58,15 @@ export function useCards(userId?: string | null) {
       async (newCards) => {
         let processedCards = newCards;
 
-        // If E2EE is active and we have key, attempt decryption
+        // If E2EE is active and we have key, attempt decryption of credentials
         if (e2eeKey) {
           processedCards = await Promise.all(
             newCards.map(async (c) => {
               try {
+                const decHolder = c.holderEnc ? await decryptText(c.holderEnc, e2eeKey) : c.holder;
                 const decNum = c.numberEnc ? await decryptText(c.numberEnc, e2eeKey) : c.number;
                 const decPayload = c.payloadEnc ? await decryptText(c.payloadEnc, e2eeKey) : c.payload;
-                return { ...c, number: decNum, payload: decPayload };
+                return { ...c, holder: decHolder, number: decNum, payload: decPayload };
               } catch {
                 return c;
               }
@@ -80,7 +89,7 @@ export function useCards(userId?: string | null) {
   // Unlock E2EE with passphrase
   const unlockE2EE = useCallback(
     async (passphrase: string): Promise<boolean> => {
-      if (!userId) return false;
+      if (!userId || userId === DEMO_USER_ID) return false;
       setIsDecrypting(true);
       try {
         let meta = userMeta;
@@ -102,9 +111,10 @@ export function useCards(userId?: string | null) {
         const decryptedList = await Promise.all(
           cards.map(async (c) => {
             try {
+              const decHolder = c.holderEnc ? await decryptText(c.holderEnc, key) : c.holder;
               const decNum = c.numberEnc ? await decryptText(c.numberEnc, key) : c.number;
               const decPayload = c.payloadEnc ? await decryptText(c.payloadEnc, key) : c.payload;
-              return { ...c, number: decNum, payload: decPayload };
+              return { ...c, holder: decHolder, number: decNum, payload: decPayload };
             } catch {
               return c;
             }
@@ -131,20 +141,30 @@ export function useCards(userId?: string | null) {
   // Save or update card
   const saveCard = useCallback(
     async (input: CardInput) => {
+      if (userId === DEMO_USER_ID || isDemoActive()) {
+        throw new Error('DEMO_MODE_RESTRICTION');
+      }
+
       const now = Date.now();
       const currentCards = cards;
       const existing = input.id ? currentCards.find((c) => c.id === input.id) : null;
       const cardId = input.id || crypto.randomUUID();
 
+      let holder = input.holder.trim();
+      let holderEnc: string | undefined = undefined;
       let number = input.number.trim();
       let numberEnc: string | undefined = undefined;
       let payload = input.payload || null;
       let payloadEnc: string | null | undefined = undefined;
 
       if (e2eeKey) {
+        if (holder) {
+          holderEnc = await encryptText(holder, e2eeKey);
+          holder = ''; // Zero-knowledge client side encryption
+        }
         if (number) {
           numberEnc = await encryptText(number, e2eeKey);
-          number = ''; // Do not store plaintext when E2EE is enabled
+          number = '';
         }
         if (payload) {
           payloadEnc = await encryptText(payload, e2eeKey);
@@ -156,7 +176,8 @@ export function useCards(userId?: string | null) {
         id: cardId,
         provider: input.provider.trim(),
         color: input.color,
-        holder: input.holder.trim(),
+        holder: holderEnc ? '' : holder,
+        holderEnc,
         number: numberEnc ? '' : number,
         numberEnc,
         label: input.label.trim(),
@@ -180,6 +201,7 @@ export function useCards(userId?: string | null) {
       // Optimistic update
       const plainCardForUI = {
         ...card,
+        holder: input.holder.trim(),
         number: input.number.trim(),
         payload: input.payload || null,
       };
@@ -197,7 +219,7 @@ export function useCards(userId?: string | null) {
       setCards(sortCards(updatedList));
 
       if (userId) {
-        await saveUserCard(userId, card, previousDefault);
+        await saveUserCard(userId, plainCardForUI, previousDefault);
       } else {
         setCachedCards(updatedList);
       }

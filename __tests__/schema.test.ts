@@ -49,15 +49,28 @@ describe('Schema validation', () => {
     expect(res.success).toBe(false);
   });
 
-  it('validates CardInput correctly', () => {
-    const valid = CardInputSchema.safeParse({
-      provider: 'Maya',
-      color: '#1FBF6B',
-      holder: 'Maria Clara',
-      number: '0918 000 0000',
-      payload: 'qr-data',
-      isDefault: false,
-    });
-    expect(valid.success).toBe(true);
+  it('validates a zero-knowledge encrypted card with payloadEnc and holderEnc', () => {
+    const encryptedCard = {
+      id: 'card-enc-123',
+      provider: 'GCash',
+      color: '#007DFE',
+      holder: '',
+      holderEnc: 'enc:v1:YWJjZGVmZ2hpams=:YWJjZGVmZ2hpamtsbW5vcA==',
+      number: '',
+      numberEnc: 'enc:v1:YWJjZGVmZ2hpams=:YWJjZGVmZ2hpamtsbW5vcA==',
+      label: 'Encrypted Personal Card',
+      category: 'personal',
+      payload: null,
+      payloadEnc: 'enc:v1:YWJjZGVmZ2hpams=:YWJjZGVmZ2hpamtsbW5vcA==',
+      isDefault: true,
+      useCount: 0,
+      lastUsedAt: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      v: 1,
+    };
+
+    const res = CardSchema.safeParse(encryptedCard);
+    expect(res.success).toBe(true);
   });
 });

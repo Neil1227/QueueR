@@ -12,6 +12,7 @@ import { ReceiveSheet } from '@/components/ReceiveSheet';
 import { EditorSheet } from '@/components/EditorSheet';
 import { SettingsSheet } from '@/components/SettingsSheet';
 import { AppLockModal } from '@/components/AppLockModal';
+import { SignUpPromptModal } from '@/components/SignUpPromptModal';
 import {
   getCachedDefaultCard,
   getPreviewNumberFormat,
@@ -21,7 +22,7 @@ import {
 
 export default function HomePage() {
   const router = useRouter();
-  const { user, loading: authLoading, isGuest } = useAuth();
+  const { user, loading: authLoading, isGuest, isDemo } = useAuth();
   const { theme, setTheme } = useTheme();
   const {
     cards,
@@ -38,12 +39,12 @@ export default function HomePage() {
     lockE2EE,
   } = useCards(user?.uid);
 
-  // Redirect to /login if unauthenticated and not in guest mode
+  // Redirect to /login if unauthenticated and not in guest or demo mode
   useEffect(() => {
-    if (!authLoading && !user && !isGuest) {
+    if (!authLoading && !user && !isGuest && !isDemo) {
       router.replace('/login');
     }
-  }, [authLoading, user, isGuest, router]);
+  }, [authLoading, user, isGuest, isDemo, router]);
 
   const {
     isLocked,
@@ -67,6 +68,7 @@ export default function HomePage() {
   const [editorCategory, setEditorCategory] = useState<CardCategory | undefined>(undefined);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSignUpPromptOpen, setIsSignUpPromptOpen] = useState(false);
   const [numberFormat, setNumberFormat] = useState<PreviewNumberFormat>('last4');
   const quickAccessHandledRef = useRef(false);
 
@@ -114,6 +116,10 @@ export default function HomePage() {
   };
 
   const handleEditFromReceive = (card: Card) => {
+    if (isDemo) {
+      setIsSignUpPromptOpen(true);
+      return;
+    }
     setReceiveCard(null);
     setEditorCategory(card.category || 'personal');
     setEditorCard(card);
@@ -121,6 +127,10 @@ export default function HomePage() {
   };
 
   const handleAddNewCard = (category?: CardCategory) => {
+    if (isDemo) {
+      setIsSignUpPromptOpen(true);
+      return;
+    }
     setEditorCategory(category);
     setEditorCard(null);
     setIsEditorOpen(true);
@@ -133,20 +143,32 @@ export default function HomePage() {
   };
 
   const handleSaveCard = async (input: CardInput) => {
+    if (isDemo) {
+      setIsSignUpPromptOpen(true);
+      return;
+    }
     await saveCard(input);
   };
 
   const handleDeleteCard = async (cardId: string) => {
+    if (isDemo) {
+      setIsSignUpPromptOpen(true);
+      return;
+    }
     await deleteCard(cardId);
   };
 
   const handleImportCards = async (importedList: Card[], mode: 'merge' | 'replace') => {
+    if (isDemo) {
+      setIsSignUpPromptOpen(true);
+      return;
+    }
     await importCards(importedList, mode);
   };
 
-  const isAnyOverlayActive = Boolean(receiveCard || isEditorOpen || isSettingsOpen || isLocked);
+  const isAnyOverlayActive = Boolean(receiveCard || isEditorOpen || isSettingsOpen || isLocked || isSignUpPromptOpen);
 
-  if (authLoading || (!user && !isGuest)) {
+  if (authLoading || (!user && !isGuest && !isDemo)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg text-text">
         <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
@@ -161,6 +183,8 @@ export default function HomePage() {
         cards={cards}
         numberFormat={numberFormat}
         hideAddButton={isAnyOverlayActive}
+        isDemo={isDemo}
+        onSignUpPrompt={() => setIsSignUpPromptOpen(true)}
         onOpenCard={handleOpenReceive}
         onAddCard={handleAddNewCard}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -209,6 +233,12 @@ export default function HomePage() {
         onUpdateNumberFormat={handleUpdateNumberFormat}
         theme={theme}
         onUpdateTheme={setTheme}
+      />
+
+      {/* Sign Up Prompt Modal for Demo Mode */}
+      <SignUpPromptModal
+        isOpen={isSignUpPromptOpen}
+        onClose={() => setIsSignUpPromptOpen(false)}
       />
 
       {/* App Lock Overlay Screen */}

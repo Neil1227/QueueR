@@ -10,22 +10,16 @@
   "theme_color": "#F5F5F7",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
+      "src": "/QueueR.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/apple-touch-icon.png",
-      "sizes": "180x180",
+      "src": "/QueueR.png",
+      "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
@@ -33,13 +27,13 @@
       "name": "Show default QR",
       "short_name": "Default QR",
       "url": "/",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/QueueR.png", "sizes": "192x192" }]
     },
     {
       "name": "All cards",
       "short_name": "Cards",
       "url": "/?stack=1",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/QueueR.png", "sizes": "192x192" }]
     }
   ]
 }

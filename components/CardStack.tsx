@@ -11,6 +11,8 @@ interface CardStackProps {
   cards: CardType[];
   numberFormat?: PreviewNumberFormat;
   hideAddButton?: boolean;
+  isDemo?: boolean;
+  onSignUpPrompt?: () => void;
   onOpenCard: (card: CardType) => void;
   onAddCard: (category?: CardCategory) => void;
   onOpenSettings: () => void;
@@ -20,6 +22,8 @@ export function CardStack({
   cards,
   numberFormat = 'last4',
   hideAddButton = false,
+  isDemo = false,
+  onSignUpPrompt,
   onOpenCard,
   onAddCard,
   onOpenSettings,
@@ -113,12 +117,28 @@ export function CardStack({
       </div>
 
       {/* Apple Wallet Navigation Header */}
-      <header className="px-5 pt-8 pb-2 flex items-baseline justify-between sticky top-0 bg-bg/85 backdrop-blur-xl z-40 transition-colors">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-[34px] font-bold tracking-tight text-text leading-tight">
+      <header className="px-5 pt-8 pb-2 flex items-center justify-between sticky top-0 bg-bg/85 backdrop-blur-xl z-40 transition-colors">
+        <div className="flex items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/QueueR.png"
+            alt="QueueR Logo"
+            className="w-8 h-8 rounded-xl object-contain shadow-xs border border-line/30"
+          />
+          <h1 className="text-[30px] font-bold tracking-tight text-text leading-tight">
             QueueR
           </h1>
-          {countText && <span className="text-sm font-medium text-muted">{countText}</span>}
+          {isDemo ? (
+            <button
+              type="button"
+              onClick={onSignUpPrompt}
+              className="text-[11px] font-semibold text-accent bg-accent/10 hover:bg-accent/20 px-2.5 py-1 rounded-full border border-accent/20 transition-all cursor-pointer ml-1 active:scale-95"
+            >
+              Demo Preview
+            </button>
+          ) : countText ? (
+            <span className="text-xs font-medium text-muted ml-1 bg-surface px-2 py-0.5 rounded-full border border-line/40">{countText}</span>
+          ) : null}
         </div>
         <button
           type="button"

@@ -89,7 +89,7 @@ export function SettingsSheet({
   theme = 'system',
   onUpdateTheme,
 }: SettingsSheetProps) {
-  const { user, isGuest, isConfigured, signInWithGoogle, signInWithEmail, signUpWithEmail, signInGuest, signOut } = useAuth();
+  const { user, isGuest, isDemo, isConfigured, signInWithGoogle, signInWithEmail, signUpWithEmail, signInGuest, signOut } = useAuth();
   const { showToast } = useToast();
 
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
@@ -301,6 +301,11 @@ export function SettingsSheet({
   // Complete Import (Merge or Replace)
   const handleApplyImport = async (mode: 'merge' | 'replace') => {
     if (!importedCardsSummary) return;
+
+    if (isDemo) {
+      showToast('Import is disabled in Demo Mode. Please create an account to save cards.');
+      return;
+    }
 
     try {
       if (mode === 'replace') {
@@ -798,7 +803,52 @@ export function SettingsSheet({
               </div>
             </div>
 
-            {user && !isGuest ? (
+            {isDemo ? (
+              <div className="pt-2 border-t border-line/20 space-y-3">
+                {/* Demo Preview Profile Card */}
+                <div className="p-3.5 bg-bg rounded-2xl border border-line/30 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-accent to-indigo-600 text-white font-bold text-base flex items-center justify-center shadow-xs shrink-0">
+                      <User className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="min-w-0 truncate">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-sm text-text truncate">
+                          Demo Previewer
+                        </span>
+                        <span className="inline-flex items-center gap-1 bg-accent/15 text-accent text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
+                          <span>Demo</span>
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted truncate block">
+                        Interactive Preview Mode
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-red-500 hover:bg-red-500/10 px-3 py-2 rounded-xl transition-all cursor-pointer shrink-0"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Exit Demo</span>
+                  </button>
+                </div>
+
+                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+                  You are exploring QueueR in <b>Demo Preview Mode</b> with dummy cards. Create an account to add, encrypt, and sync your real Philippine payment QR cards.
+                </div>
+
+                <Link
+                  href="/login"
+                  onClick={onClose}
+                  className="w-full py-3 px-4 rounded-2xl bg-accent text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md hover:bg-accent/90 active:scale-[0.98] transition-all cursor-pointer text-center"
+                >
+                  <span>Sign Up / Create Account</span>
+                </Link>
+              </div>
+            ) : user && !isGuest ? (
               <div className="pt-2 border-t border-line/20 space-y-3">
                 {/* User Profile Card */}
                 <div className="p-3.5 bg-bg rounded-2xl border border-line/30 flex items-center justify-between gap-3">
@@ -936,10 +986,18 @@ export function SettingsSheet({
           </section>
 
           {/* About / Info */}
-          <div className="text-center text-xs text-muted pt-4 space-y-1">
-            <p className="font-semibold text-text">QueueR v1.0.0</p>
-            <p>Mobile-first Unified Bank & E-Wallet Payment QR Cards</p>
-            <p className="text-[11px] opacity-75">Cloudflare Pages + Firebase Offline Persistence</p>
+          <div className="text-center text-xs text-muted pt-4 space-y-2 flex flex-col items-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/QueueR.png"
+              alt="QueueR Logo"
+              className="w-12 h-12 rounded-2xl object-contain shadow-sm border border-line/30"
+            />
+            <div>
+              <p className="font-semibold text-text text-sm">QueueR v1.0.0</p>
+              <p className="text-xs">Mobile-first Unified Bank & E-Wallet Payment QR Cards</p>
+              <p className="text-[11px] opacity-75">Cloudflare Pages + Firebase Offline Persistence</p>
+            </div>
           </div>
         </div>
       </div>

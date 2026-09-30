@@ -29,12 +29,14 @@ function LoginContent() {
   const {
     user,
     isGuest,
+    isDemo,
     loading: authStateLoading,
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,
     sendPasswordReset,
     signInGuest,
+    signInDemo,
     signOut,
   } = useAuth();
   const { showToast } = useToast();
@@ -43,7 +45,7 @@ function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loadingAction, setLoadingAction] = useState<'google' | 'email' | 'guest' | 'reset' | null>(null);
+  const [loadingAction, setLoadingAction] = useState<'google' | 'email' | 'guest' | 'reset' | 'demo' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -139,6 +141,23 @@ function LoginContent() {
     }
   };
 
+  const handleDemoLogin = async () => {
+    setLoadingAction('demo');
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      await signInDemo();
+      showToast('Welcome to QueueR Demo Preview');
+      router.push(redirectPath);
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to launch demo';
+      setErrorMessage(msg);
+      showToast(msg);
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -154,10 +173,13 @@ function LoginContent() {
       <main className="my-auto py-6 space-y-6">
         {/* Brand Logo & Title */}
         <div className="text-center space-y-2">
-          <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-accent via-blue-600 to-indigo-600 p-[1.5px] shadow-[0_8px_25px_rgba(0,122,255,0.35)] mx-auto flex items-center justify-center">
-            <div className="w-full h-full rounded-[22px] bg-white/10 backdrop-blur-xs flex items-center justify-center">
-              <QrCode className="w-8 h-8 text-white stroke-[2.2]" />
-            </div>
+          <div className="w-20 h-20 rounded-[24px] p-1 shadow-[0_10px_30px_rgba(0,122,255,0.25)] mx-auto flex items-center justify-center bg-white dark:bg-white/10 border border-line/40">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/QueueR.png"
+              alt="QueueR Logo"
+              className="w-full h-full rounded-[20px] object-contain"
+            />
           </div>
 
           <div>
@@ -405,24 +427,29 @@ function LoginContent() {
               </div>
             </form>
 
-            {/* Continue as Guest */}
-            {!isGuest && authMode !== 'forgot' && (
-              <div className="pt-2 border-t border-line/20">
+            {/* Demo Mode & Guest Mode Options */}
+            {authMode !== 'forgot' && (
+              <div className="pt-2 border-t border-line/20 space-y-2">
                 <button
                   type="button"
                   disabled={Boolean(loadingAction)}
-                  onClick={handleGuestLogin}
-                  className="w-full py-2.5 px-3 rounded-2xl text-xs font-semibold text-muted hover:text-text hover:bg-bg/80 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  onClick={handleDemoLogin}
+                  className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 hover:from-blue-500/20 hover:to-purple-500/20 text-accent font-bold text-xs flex items-center justify-center gap-2 border border-accent/25 active:scale-[0.98] transition-all cursor-pointer shadow-xs disabled:opacity-50"
                 >
-                  {loadingAction === 'guest' ? (
-                    <div className="w-3.5 h-3.5 rounded-full border-2 border-muted border-t-transparent animate-spin" />
-                  ) : (
-                    <>
-                      <span>Explore as Guest (Offline Local Mode)</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </>
-                  )}
+                  <Sparkles className="w-4 h-4 text-accent" />
+                  <span>Try Live Demo (Interactive Preview)</span>
                 </button>
+
+                {!isGuest && !isDemo && (
+                  <button
+                    type="button"
+                    disabled={Boolean(loadingAction)}
+                    onClick={handleGuestLogin}
+                    className="w-full py-2 px-3 rounded-xl text-[11px] font-medium text-muted hover:text-text hover:bg-bg/60 flex items-center justify-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <span>Local Offline Guest Mode</span>
+                  </button>
+                )}
               </div>
             )}
           </div>

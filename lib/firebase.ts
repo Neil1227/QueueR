@@ -30,6 +30,11 @@ import {
 } from 'firebase/firestore';
 import { Card, CardSchema, UserMeta, UserMetaSchema } from './schema';
 import { setCachedCards, getCachedCards } from './cards';
+import {
+  getUserStorageKey,
+  encryptCardForStorage,
+  decryptCardFromStorage,
+} from './crypto';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyACicWbUFCC8ncz6t8Ga0eDmDsN1vbwWys',
@@ -192,33 +197,68 @@ export function subscribeToUserCards(
     q,
     { includeMetadataChanges: true },
     async (snapshot) => {
-      const cards: Card[] = [];
-      snapshot.forEach((docSnap) => {
-        const raw = docSnap.data();
-        const parsed = CardSchema.safeParse({ ...raw, id: docSnap.id });
-        if (parsed.success) {
-          cards.push(parsed.data);
-        } else {
-          console.warn('Card schema validation failed for:', docSnap.id, parsed.error);
-        }
-      });
+      try {
+        const key = await getUserStorageKey(userId);
+        const rawCards: Card[] = [];
 
-      // Auto-sync offline guest cards to newly created user cloud account
-      if (!hasAttemptedInitialSync && cards.length === 0 && initialCards.length > 0 && !snapshot.metadata.hasPendingWrites) {
-        hasAttemptedInitialSync = true;
-        for (const c of initialCards) {
-          try {
-            await saveUserCard(userId, c);
-          } catch (syncErr) {
-            console.warn('Failed to sync offline card to cloud:', syncErr);
+        snapshot.forEach((docSnap) => {
+          const raw = docSnap.data();
+          const parsed = CardSchema.safeParse({ ...raw, id: docSnap.id });
+          if (parsed.success) {
+            rawCards.push(parsed.data);
+          } else {
+            console.warn('Card schema validation failed for:', docSnap.id, parsed.error);
+          }
+        });
+
+        // Decrypt cards from AES-GCM storage format for UI display
+        const decryptedCards = await Promise.all(
+          rawCards.map((c) => decryptCardFromStorage(c, key))
+        );
+
+        // Auto-migrate legacy unencrypted Firestore documents to AES-256 encrypted format
+        if (!snapshot.metadata.hasPendingWrites && db) {
+          for (const rawCard of rawCards) {
+            const isUnencrypted =
+              (rawCard.holder && !rawCard.holder.startsWith('enc:v1:')) ||
+              (rawCard.number && !rawCard.number.startsWith('enc:v1:')) ||
+              (rawCard.payload && !rawCard.payload.startsWith('enc:v1:')) ||
+              (rawCard.imgB64 && !rawCard.imgB64.startsWith('enc:v1:'));
+
+            if (isUnencrypted) {
+              encryptCardForStorage(rawCard, key)
+                .then((encryptedCard) => {
+                  const cardRef = doc(db!, 'users', userId, 'cards', rawCard.id);
+                  return setDoc(cardRef, cleanForFirestore(encryptedCard), { merge: true });
+                })
+                .catch((err) => {
+                  console.warn('Auto-encrypt migration note:', err);
+                });
+            }
           }
         }
-        return;
-      }
 
-      // Update local storage cache
-      setCachedCards(cards);
-      onCards(cards);
+        // Auto-sync offline guest cards to newly created user cloud account
+        if (!hasAttemptedInitialSync && decryptedCards.length === 0 && initialCards.length > 0 && !snapshot.metadata.hasPendingWrites) {
+          hasAttemptedInitialSync = true;
+          for (const c of initialCards) {
+            try {
+              await saveUserCard(userId, c);
+            } catch (syncErr) {
+              console.warn('Failed to sync offline card to cloud:', syncErr);
+            }
+          }
+          return;
+        }
+
+        // Update local storage cache
+        setCachedCards(decryptedCards);
+        onCards(decryptedCards);
+      } catch (err: any) {
+        console.warn('Failed to process card snapshot:', err);
+        const cached = getCachedCards();
+        onCards(cached);
+      }
     },
     (err) => {
       console.warn('Firestore snapshot notice (using local offline cache):', err?.message);
@@ -247,6 +287,7 @@ function cleanForFirestore<T extends Record<string, any>>(data: T): Record<strin
 
 /**
  * Save or update a card. Validates client-side with Zod and unsets previous default if needed.
+ * Encrypts sensitive fields (holder, number, payload, imgB64) with AES-GCM 256-bit before writing to Firestore.
  * Optimistically updates local cache and persists to Firebase Firestore.
  */
 export async function saveUserCard(
@@ -256,7 +297,7 @@ export async function saveUserCard(
 ): Promise<void> {
   const validated = CardSchema.parse(cardData);
 
-  // Optimistically update local storage cache
+  // Optimistically update local storage cache with decrypted card for instant UI response
   const current = getCachedCards();
   const filtered = current.filter((c) => c.id !== validated.id);
   if (validated.isDefault) {
@@ -271,7 +312,10 @@ export async function saveUserCard(
     return;
   }
 
-  const cleanData = cleanForFirestore(validated);
+  // Encrypt sensitive card credentials before writing to Cloud Firestore
+  const key = await getUserStorageKey(userId);
+  const encryptedCard = await encryptCardForStorage(validated, key);
+  const cleanData = cleanForFirestore(encryptedCard);
   const cardRef = doc(db, 'users', userId, 'cards', validated.id);
 
   try {
