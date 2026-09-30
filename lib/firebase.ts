@@ -247,6 +247,7 @@ function cleanForFirestore<T extends Record<string, any>>(data: T): Record<strin
 
 /**
  * Save or update a card. Validates client-side with Zod and unsets previous default if needed.
+ * Optimistically updates local cache and persists to Firebase Firestore.
  */
 export async function saveUserCard(
   userId: string,
@@ -255,43 +256,40 @@ export async function saveUserCard(
 ): Promise<void> {
   const validated = CardSchema.parse(cardData);
 
+  // Optimistically update local storage cache
+  const current = getCachedCards();
+  const filtered = current.filter((c) => c.id !== validated.id);
+  if (validated.isDefault) {
+    filtered.forEach((c) => {
+      c.isDefault = false;
+    });
+  }
+  const updated = [validated, ...filtered];
+  setCachedCards(updated);
+
   if (!db || !isAuthUser(userId)) {
-    // Local offline storage fallback
-    const current = getCachedCards();
-    const filtered = current.filter((c) => c.id !== validated.id);
-    if (validated.isDefault) {
-      filtered.forEach((c) => {
-        c.isDefault = false;
-      });
-    }
-    const updated = [validated, ...filtered];
-    setCachedCards(updated);
     return;
   }
 
+  const cleanData = cleanForFirestore(validated);
+  const cardRef = doc(db, 'users', userId, 'cards', validated.id);
+
   try {
-    const batch = writeBatch(db);
-    const cardRef = doc(db, 'users', userId, 'cards', validated.id);
+    // Save the card document directly using setDoc merge
+    await setDoc(cardRef, cleanData, { merge: true });
 
+    // If this card is set as default and there was a previous default, unset it safely
     if (validated.isDefault && previousDefaultId && previousDefaultId !== validated.id) {
-      const prevRef = doc(db, 'users', userId, 'cards', previousDefaultId);
-      batch.update(prevRef, { isDefault: false, updatedAt: Date.now() });
+      try {
+        const prevRef = doc(db, 'users', userId, 'cards', previousDefaultId);
+        await setDoc(prevRef, { isDefault: false, updatedAt: Date.now() }, { merge: true });
+      } catch (prevErr) {
+        console.warn('Could not unset previous default in Firestore:', prevErr);
+      }
     }
-
-    const cleanData = cleanForFirestore(validated);
-    batch.set(cardRef, cleanData, { merge: true });
-    await batch.commit();
-  } catch (err) {
-    console.warn('Firestore save fallback to local cache:', err);
-    // Keep local cache intact on Firestore error
-    const current = getCachedCards();
-    const filtered = current.filter((c) => c.id !== validated.id);
-    if (validated.isDefault) {
-      filtered.forEach((c) => {
-        c.isDefault = false;
-      });
-    }
-    setCachedCards([validated, ...filtered]);
+  } catch (err: any) {
+    console.error('Firestore saveUserCard error:', err);
+    throw new Error(err?.message || 'Failed to save card to Firebase');
   }
 }
 
@@ -310,8 +308,9 @@ export async function deleteUserCard(userId: string, cardId: string): Promise<vo
   try {
     const cardRef = doc(db, 'users', userId, 'cards', cardId);
     await deleteDoc(cardRef);
-  } catch (err) {
-    console.warn('Firestore delete fallback:', err);
+  } catch (err: any) {
+    console.error('Firestore deleteUserCard error:', err);
+    throw new Error(err?.message || 'Failed to delete card from Firebase');
   }
 }
 
@@ -334,12 +333,17 @@ export async function recordCardUse(userId: string, cardId: string): Promise<voi
 
   try {
     const cardRef = doc(db, 'users', userId, 'cards', cardId);
-    await updateDoc(cardRef, {
-      useCount: increment(1),
-      lastUsedAt: now,
-    });
+    await setDoc(
+      cardRef,
+      {
+        useCount: increment(1),
+        lastUsedAt: now,
+        updatedAt: now,
+      },
+      { merge: true }
+    );
   } catch (err) {
-    console.warn('Firestore recordUse fallback:', err);
+    console.warn('Firestore recordUse notice:', err);
   }
 }
 
@@ -369,8 +373,9 @@ export async function saveUserMeta(userId: string, meta: UserMeta): Promise<void
     const metaRef = doc(db, 'users', userId, 'meta', 'settings');
     const cleanData = cleanForFirestore(validated);
     await setDoc(metaRef, cleanData, { merge: true });
-  } catch (err) {
-    console.warn('Firestore saveUserMeta fallback:', err);
+  } catch (err: any) {
+    console.error('Firestore saveUserMeta error:', err);
+    throw new Error(err?.message || 'Failed to save settings to Firebase');
   }
 }
 

@@ -318,7 +318,7 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
       )}
 
       {/* Top Bar Controls */}
-      <div className="w-full max-w-md flex justify-between items-center min-h-[40px] mb-2 sm:mb-2.5">
+      <div className="w-full max-w-md flex justify-between items-center min-h-[40px] mb-2 sm:mb-2.5 shrink-0">
         <button
           type="button"
           onClick={onClose}
@@ -376,7 +376,7 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
       {/* QR Box */}
       <div
         onClick={() => setQrUnblurred(true)}
-        className={`relative bg-white rounded-qrbox p-5 mt-4 mb-5 sm:mt-6 sm:mb-6 shadow-qr aspect-square flex items-center justify-center overflow-hidden transition-all duration-300 border border-black/10 ${scanMode ? 'w-[min(90vw,360px)] ring-4 ring-black/10' : 'w-[min(84vw,340px)]'
+        className={`relative bg-white rounded-qrbox p-4 my-2.5 sm:my-3.5 shadow-qr aspect-square flex items-center justify-center overflow-hidden transition-all duration-300 border border-black/10 shrink-0 ${scanMode ? 'w-[min(78vw,290px)] sm:w-[min(80vw,320px)] ring-4 ring-black/10' : 'w-[min(72vw,270px)] sm:w-[min(78vw,300px)]'
           }`}
       >
         {card.payload ? (
@@ -406,7 +406,7 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
       </div>
 
       {/* Amount Request & KKB Split Pills */}
-      <div className="mt-0 mb-4 flex items-center justify-center">
+      <div className="mt-0 mb-3 flex items-center justify-center shrink-0">
         {requestedAmount && requestedAmount > 0 ? (
           <div
             style={{
@@ -491,63 +491,66 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
         )}
       </div>
 
-      {/* Provider & Holder */}
-      <div className="flex items-center justify-center gap-2.5 max-w-[90vw] drop-shadow-sm">
-        <BankLogo
-          provider={card.provider}
-          customLogo={card.logoB64}
-          color={card.color}
-          size={32}
-        />
-        <h2
-          style={{ color: fg }}
-          className="text-2xl sm:text-3xl font-bold tracking-tight m-0 truncate"
-        >
-          {card.provider}
-          {card.label ? <span className="opacity-85 font-medium"> · {card.label}</span> : null}
-        </h2>
-      </div>
-      {card.holder && (
-        <p
-          style={{ color: fg }}
-          className="mt-1 text-lg font-medium opacity-90 max-w-[90vw] truncate drop-shadow-sm"
-        >
-          {card.holder}
-        </p>
-      )}
-
-      {/* Account Number (Tap to reveal/hide) */}
-      {card.number && (
-        <>
-          <button
-            type="button"
-            onClick={() => setRevealed(!revealed)}
-            aria-label={revealed ? 'Hide account number' : 'Reveal full account number'}
-            style={{
-              color: fg,
-              backgroundColor: fg === '#1D1D1F' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.14)',
-              border: fg === '#1D1D1F' ? '1px solid rgba(0, 0, 0, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)',
-            }}
-            className={`mt-3.5 mb-1 px-4 py-2 rounded-xl text-xl sm:text-2xl font-mono font-semibold tracking-wide tabular-nums active:scale-98 transition-all backdrop-blur-sm cursor-pointer ${isNumberBlurred ? 'blur-sm select-none' : ''
-              }`}
+      {/* Provider & Holder Details Group (Guaranteed Non-overlapping) */}
+      <div className="flex flex-col items-center justify-center shrink-0 w-full max-w-sm my-1">
+        <div className="flex items-center justify-center gap-2 max-w-[90vw] drop-shadow-sm shrink-0">
+          <BankLogo
+            provider={card.provider}
+            customLogo={card.logoB64}
+            color={card.color}
+            size={28}
+          />
+          <h2
+            style={{ color: fg }}
+            className="text-xl sm:text-2xl font-bold tracking-tight m-0 leading-tight truncate"
           >
-            {displayText}
-          </button>
-          <p style={{ color: fg }} className="text-xs opacity-80 m-0 mb-4 font-medium">
-            Tap number to show or hide
-          </p>
-        </>
-      )}
+            {card.provider}
+            {card.label ? <span className="opacity-85 font-medium"> · {card.label}</span> : null}
+          </h2>
+        </div>
 
-      {/* Action Buttons Row: Copy, Share, Share Image */}
-      <div className="flex flex-wrap gap-2.5 w-[min(88vw,360px)] mt-auto pt-3">
+        {card.holder && (
+          <p
+            style={{ color: fg }}
+            className="mt-1 text-base sm:text-lg font-medium opacity-90 max-w-[90vw] truncate drop-shadow-sm shrink-0 leading-normal"
+          >
+            {card.holder}
+          </p>
+        )}
+
+        {/* Account Number (Tap to reveal/hide) */}
+        {card.number && (
+          <div className="flex flex-col items-center shrink-0 mt-2 mb-1">
+            <button
+              type="button"
+              onClick={() => setRevealed(!revealed)}
+              aria-label={revealed ? 'Hide account number' : 'Reveal full account number'}
+              style={{
+                color: fg,
+                backgroundColor: fg === '#1D1D1F' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.16)',
+                border: fg === '#1D1D1F' ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.25)',
+              }}
+              className={`px-4 py-1.5 rounded-xl text-lg sm:text-xl font-mono font-semibold tracking-wider tabular-nums active:scale-98 transition-all backdrop-blur-sm cursor-pointer shadow-xs ${isNumberBlurred ? 'blur-sm select-none' : ''
+                }`}
+            >
+              {displayText}
+            </button>
+            <p style={{ color: fg }} className="text-[11px] sm:text-xs opacity-75 mt-1 font-medium select-none">
+              Tap number to show or hide
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Action Buttons Row: Copy, Share, Image */}
+      <div className={`w-full max-w-[380px] grid ${card.number ? 'grid-cols-3' : 'grid-cols-2'} gap-2 mt-auto pt-2 pb-1.5 px-1 shrink-0`}>
         {card.number && (
           <button
             type="button"
             onClick={handleCopyNumber}
-            className="flex-1 min-w-[95px] py-3 px-3 rounded-2xl bg-white text-[#1D1D1F] font-semibold text-sm shadow-md border border-black/10 hover:bg-white/95 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            className="py-3 px-2 rounded-2xl bg-white text-[#1D1D1F] font-semibold text-xs sm:text-sm shadow-md border border-black/10 hover:bg-white/95 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
           >
-            <Copy className="w-4 h-4" />
+            <Copy className="w-4 h-4 shrink-0" />
             <span>Copy</span>
           </button>
         )}
@@ -555,24 +558,19 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
         <button
           type="button"
           onClick={handleShareDetails}
-          style={{
-            color: fg,
-            backgroundColor: fg === '#1D1D1F' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.22)',
-            border: fg === '#1D1D1F' ? '1px solid rgba(0, 0, 0, 0.14)' : '1px solid rgba(255, 255, 255, 0.22)',
-          }}
-          className="flex-1 min-w-[95px] py-3 px-3 rounded-2xl backdrop-blur-md font-semibold text-sm shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:brightness-95"
+          className="py-3 px-2 rounded-2xl bg-white text-[#1D1D1F] font-semibold text-xs sm:text-sm shadow-md border border-black/10 hover:bg-white/95 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
         >
-          <Share2 className="w-4 h-4" />
+          <Share2 className="w-4 h-4 shrink-0" />
           <span>Share</span>
         </button>
 
         <button
           type="button"
           onClick={handleOpenShareImageModal}
-          className="flex-1 min-w-[110px] py-3 px-3 rounded-2xl bg-white text-[#1D1D1F] font-semibold text-sm shadow-md border border-black/10 hover:bg-white/95 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+          className="py-3 px-2 rounded-2xl bg-white text-[#1D1D1F] font-semibold text-xs sm:text-sm shadow-md border border-black/10 hover:bg-white/95 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
         >
-          <ImageIcon className="w-4 h-4" />
-          <span>Share image</span>
+          <ImageIcon className="w-4 h-4 shrink-0" />
+          <span>Image</span>
         </button>
       </div>
 

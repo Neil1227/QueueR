@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 
 interface ToastContextValue {
   showToast: (msg: string) => void;
@@ -13,14 +14,18 @@ const ToastContext = createContext<ToastContextValue>({
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const showToast = useCallback((msg: string) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
     setMessage(msg);
     setVisible(true);
-    const timer = setTimeout(() => {
+
+    timerRef.current = setTimeout(() => {
       setVisible(false);
-    }, 2200);
-    return () => clearTimeout(timer);
+    }, 2400);
   }, []);
 
   return (
@@ -30,9 +35,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         <div
           role="status"
           aria-live="polite"
-          className="fixed left-1/2 bottom-[calc(84px+env(safe-area-inset-bottom,0px))] -translate-x-1/2 z-50 bg-[#1D1D1F] text-white text-sm font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none transition-all duration-200 animate-fade-in text-center max-w-[90vw] truncate border border-white/10"
+          className="fixed top-[calc(16px+env(safe-area-inset-top,0px))] left-1/2 -translate-x-1/2 z-[100] bg-neutral-900/95 dark:bg-neutral-800/95 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-full shadow-2xl pointer-events-none transition-all duration-300 animate-slide-down text-center max-w-[92vw] truncate border border-white/20 backdrop-blur-xl flex items-center gap-2"
         >
-          {message}
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="truncate">{message}</span>
         </div>
       )}
     </ToastContext.Provider>

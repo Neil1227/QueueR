@@ -102,7 +102,7 @@ async function getJsQRDecoder() {
 export async function processQRImage(blob: Blob): Promise<QRProcessResult> {
   try {
     const img = await loadBitmap(blob);
-    const scale = Math.min(1, 1200 / Math.max(img.width, img.height, 1));
+    const scale = Math.min(1, 800 / Math.max(img.width, img.height, 1));
     const width = Math.max(1, Math.round(img.width * scale));
     const height = Math.max(1, Math.round(img.height * scale));
 
@@ -139,8 +139,8 @@ export async function processQRImage(blob: Blob): Promise<QRProcessResult> {
       }
     }
 
-    // Fallback: JPEG base64
-    const imgB64 = canvas.toDataURL('image/jpeg', 0.85);
+    // Fallback: JPEG base64 (downscaled to max 800px, 0.80 quality ~30-50KB)
+    const imgB64 = canvas.toDataURL('image/jpeg', 0.80);
     return {
       payload: null,
       imgB64,
