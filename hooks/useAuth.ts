@@ -9,7 +9,6 @@ import {
   signInWithEmail,
   signUpWithEmail,
   signInGuest,
-  sendResetPasswordEmail,
   checkRedirectResult,
   getCurrentDomain,
   logOut,
@@ -64,7 +63,6 @@ export interface AuthState {
   signInWithEmail: (email: string, pass: string) => Promise<User>;
   signUpWithEmail: (email: string, pass: string) => Promise<User>;
   signInGuest: () => Promise<User | null>;
-  sendPasswordReset: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -320,23 +318,6 @@ export function useAuth(): AuthState {
     }
   };
 
-  const handleSendPasswordReset = async (email: string) => {
-    setError(null);
-    setUnauthorizedDomain(null);
-    if (!auth) {
-      return;
-    }
-    try {
-      await sendPasswordResetEmail(email);
-    } catch (err: any) {
-      const msg = err?.message || 'Failed to send password reset email';
-      setError(msg);
-      if (msg.includes('Unauthorized Domain') || err?.code === 'auth/unauthorized-domain') {
-        setUnauthorizedDomain(getCurrentDomain());
-      }
-      throw err;
-    }
-  };
 
   const handleSignOut = async () => {
     setError(null);
@@ -374,7 +355,6 @@ export function useAuth(): AuthState {
     signInWithEmail: handleSignInEmail,
     signUpWithEmail: handleSignUpEmail,
     signInGuest: handleSignInGuest,
-    sendPasswordReset: handleSendPasswordReset,
     signOut: handleSignOut,
   };
 }

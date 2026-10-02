@@ -10,7 +10,6 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInAnonymously,
-  sendPasswordResetEmail,
   signOut,
   User,
   Auth,
@@ -241,14 +240,6 @@ export async function signInGuest(): Promise<User> {
   }
 }
 
-export async function sendResetPasswordEmail(email: string): Promise<void> {
-  if (!auth) throw new Error('Firebase Auth is not configured');
-  try {
-    await sendPasswordResetEmail(auth, email);
-  } catch (err: any) {
-    throw handleAuthDomainError(err);
-  }
-}
 
 export async function logOut(): Promise<void> {
   if (!auth) return;

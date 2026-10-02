@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Mail, ShieldAlert, CheckCircle2, ArrowRight, Lock, LogOut, ArrowLeft } from 'lucide-react';
+import { ShieldAlert, ArrowRight, Lock, LogOut, ArrowLeft } from 'lucide-react';
 import { GoogleIcon } from './GoogleIcon';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -20,10 +20,9 @@ export function ForgotPinModal({
   onVerifiedReset,
   onSignOut,
 }: ForgotPinModalProps) {
-  const { user, signInWithGoogle, signInWithEmail, sendPasswordReset } = useAuth();
+  const { user, signInWithGoogle, signInWithEmail } = useAuth();
   const [email, setEmail] = useState(userEmail || user?.email || '');
   const [password, setPassword] = useState('');
-  const [emailSent, setEmailSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [verifyMode, setVerifyMode] = useState<'options' | 'password'>('options');
@@ -31,23 +30,6 @@ export function ForgotPinModal({
   if (!isOpen) return null;
 
   const targetEmail = email || userEmail || user?.email || '';
-
-  const handleSendResetEmail = async () => {
-    if (!targetEmail) {
-      setErrorMessage('Please provide your account email address');
-      return;
-    }
-    setLoading(true);
-    setErrorMessage(null);
-    try {
-      await sendPasswordReset(targetEmail);
-      setEmailSent(true);
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to send reset email. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleGoogleVerify = async () => {
     setLoading(true);
@@ -93,7 +75,7 @@ export function ForgotPinModal({
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-text">Forgot 4-Digit PIN?</h2>
           <p className="text-xs text-muted mt-1.5 leading-relaxed">
-            Verify ownership of your account via email or Google sign-in to reset and choose a new 4-digit PIN.
+            Verify ownership of your account via Google or your account password to reset and configure a new 4-digit PIN.
           </p>
         </div>
 
@@ -103,38 +85,7 @@ export function ForgotPinModal({
           </div>
         )}
 
-        {emailSent ? (
-          <div className="space-y-4 bg-surface p-5 rounded-3xl border border-line/50 animate-fade-in">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-text">Verification Email Sent</h3>
-              <p className="text-xs text-muted mt-1 leading-relaxed">
-                We sent a password/PIN reset link to{' '}
-                <span className="font-semibold text-text">{targetEmail}</span>.
-              </p>
-            </div>
-            <div className="pt-2 space-y-2">
-              <button
-                type="button"
-                onClick={handleGoogleVerify}
-                disabled={loading}
-                className="w-full py-3 px-4 rounded-2xl bg-accent text-white font-bold text-xs shadow-sm hover:bg-accent/90 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>Verify with Google to Reset Now</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full py-2.5 px-4 rounded-2xl bg-bg border border-line/60 text-text font-semibold text-xs hover:bg-surface active:scale-98 transition-all cursor-pointer"
-              >
-                Back to PIN Screen
-              </button>
-            </div>
-          </div>
-        ) : verifyMode === 'password' ? (
+        {verifyMode === 'password' ? (
           <form onSubmit={handlePasswordVerify} className="space-y-3 bg-surface p-5 rounded-3xl border border-line/50 animate-fade-in">
             <div className="text-left space-y-1">
               <label className="text-[11px] font-semibold text-muted uppercase">Account Email</label>
@@ -182,21 +133,10 @@ export function ForgotPinModal({
               type="button"
               onClick={handleGoogleVerify}
               disabled={loading}
-              className="w-full py-3 px-4 rounded-2xl bg-bg hover:bg-bg/80 border border-line/60 text-text font-bold text-xs flex items-center justify-center gap-2.5 active:scale-98 transition-all cursor-pointer"
+              className="w-full py-3 px-4 rounded-2xl bg-accent text-white font-bold text-xs shadow-sm hover:bg-accent/90 active:scale-98 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
             >
               <GoogleIcon className="w-4 h-4 shrink-0" />
               <span>Verify with Google & Reset PIN</span>
-            </button>
-
-            {/* Email Verification Link */}
-            <button
-              type="button"
-              onClick={handleSendResetEmail}
-              disabled={loading}
-              className="w-full py-3 px-4 rounded-2xl bg-accent text-white font-bold text-xs shadow-sm hover:bg-accent/90 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Mail className="w-4 h-4" />
-              <span>Send Verification Email to {targetEmail ? targetEmail.split('@')[0] + '@...' : 'Email'}</span>
             </button>
 
             {/* Password Verification Option */}

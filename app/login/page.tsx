@@ -42,7 +42,6 @@ function LoginContent() {
     signInWithEmail,
     signUpWithEmail,
     signInGuest,
-    sendPasswordReset,
   } = useAuth();
   const { showToast } = useToast();
 
@@ -51,7 +50,7 @@ function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loadingAction, setLoadingAction] = useState<'google' | 'google-redirect' | 'email' | 'guest' | 'reset' | null>(null);
+  const [loadingAction, setLoadingAction] = useState<'google' | 'google-redirect' | 'email' | 'guest' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showPinSetup, setShowPinSetup] = useState(false);
 
@@ -182,25 +181,6 @@ function LoginContent() {
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setErrorMessage('Enter your email address above first to receive the reset link.');
-      showToast('Enter your email address first');
-      return;
-    }
-    setLoadingAction('reset');
-    setErrorMessage(null);
-    try {
-      await sendPasswordReset(email);
-      showToast(`Password reset link sent to ${email}`);
-    } catch (err: any) {
-      const msg = err?.message || 'Failed to send reset email';
-      setErrorMessage(msg);
-      showToast(msg);
-    } finally {
-      setLoadingAction(null);
-    }
-  };
 
   const handleGuestLogin = async () => {
     setLoadingAction('guest');
@@ -339,21 +319,9 @@ function LoginContent() {
             </div>
 
             <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider">
-                  Password
-                </label>
-                {authMode === 'signin' && (
-                  <button
-                    type="button"
-                    onClick={handleForgotPassword}
-                    disabled={loadingAction === 'reset'}
-                    className="text-[11px] text-accent hover:underline font-semibold cursor-pointer"
-                  >
-                    {loadingAction === 'reset' ? 'Sending...' : 'Forgot password?'}
-                  </button>
-                )}
-              </div>
+              <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider">
+                Password
+              </label>
               <div className="relative flex items-center">
                 <Lock className="absolute left-3.5 w-4 h-4 text-muted pointer-events-none" />
                 <input
