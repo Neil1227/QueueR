@@ -417,9 +417,9 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-sm animate-fade-in text-sm font-semibold"
           >
             {requestedNote?.includes('pax') || requestedNote?.includes('KKB') ? (
-              <Users className="w-4 h-4 text-white shrink-0" />
+              <Users className="w-4 h-4 shrink-0" />
             ) : (
-              <Banknote className="w-4 h-4 text-white shrink-0" />
+              <Banknote className="w-4 h-4 shrink-0" />
             )}
             <span className="tabular-nums font-bold">
               ₱{requestedAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
@@ -470,7 +470,7 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
               }}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-sm hover:brightness-95 active:scale-95 transition-all text-xs sm:text-sm font-medium cursor-pointer"
             >
-              <Banknote className="w-3.5 h-3.5 text-white shrink-0" />
+              <Banknote className="w-3.5 h-3.5 shrink-0" />
               <span>Request Amount</span>
             </button>
 
@@ -484,7 +484,7 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
               }}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-sm hover:brightness-95 active:scale-95 transition-all text-xs sm:text-sm font-medium cursor-pointer"
             >
-              <Users className="w-3.5 h-3.5 text-white shrink-0" />
+              <Users className="w-3.5 h-3.5 shrink-0" />
               <span>Split Bill (KKB)</span>
             </button>
           </div>

@@ -187,6 +187,16 @@ export function subscribeToUserCards(
 /**
  * Save or update a card. Validates client-side with Zod and unsets previous default if needed.
  */
+function cleanFirestoreData<T extends Record<string, any>>(data: T): Record<string, any> {
+  const clean: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      clean[key] = value;
+    }
+  }
+  return clean;
+}
+
 export async function saveUserCard(
   userId: string,
   cardData: Card,
@@ -216,7 +226,7 @@ export async function saveUserCard(
     batch.update(prevRef, { isDefault: false, updatedAt: Date.now() });
   }
 
-  batch.set(cardRef, validated, { merge: true });
+  batch.set(cardRef, cleanFirestoreData(validated), { merge: true });
   await batch.commit();
 }
 
@@ -277,5 +287,5 @@ export async function saveUserMeta(userId: string, meta: UserMeta): Promise<void
   if (!db || !userId) return;
   const validated = UserMetaSchema.parse(meta);
   const metaRef = doc(db, 'users', userId, 'meta', 'settings');
-  await setDoc(metaRef, validated, { merge: true });
+  await setDoc(metaRef, cleanFirestoreData(validated), { merge: true });
 }
