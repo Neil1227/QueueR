@@ -42,7 +42,6 @@ export function EditorSheet({
   const [isDefault, setIsDefault] = useState(false);
   const [payload, setPayload] = useState<string | null>(null);
   const [imgB64, setImgB64] = useState<string | null>(null);
-  const [logoB64, setLogoB64] = useState<string | null>(null);
   const [qrMessage, setQrMessage] = useState<string>('');
   const [qrSuccess, setQrSuccess] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -69,7 +68,6 @@ export function EditorSheet({
         setIsDefault(card.isDefault || false);
         setPayload(card.payload || null);
         setImgB64(card.imgB64 || null);
-        setLogoB64(card.logoB64 || null);
         setQrMessage(
           card.payload
             ? 'QR verified and ready.'
@@ -90,28 +88,13 @@ export function EditorSheet({
         setIsDefault(false);
         setPayload(null);
         setImgB64(null);
-        setLogoB64(null);
         setQrMessage('Upload a screenshot or paste one from your clipboard.');
         setQrSuccess(false);
       }
     }
   }, [isOpen, card, initialCategory]);
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 200 * 1024) {
-      showToast('Logo file must be under 200 KB');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setLogoB64(ev.target?.result as string);
-      showToast('Custom logo added');
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
+
 
   const handleProcessBlob = useCallback(
     async (blob: Blob) => {
@@ -223,7 +206,7 @@ export function EditorSheet({
         category,
         payload,
         imgB64,
-        logoB64,
+        logoB64: null,
         isDefault,
       });
       showToast('Card saved');
@@ -339,7 +322,7 @@ export function EditorSheet({
 
             <div className="flex items-center bg-surface border border-line/60 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 rounded-2xl px-3.5 py-3 shadow-sm transition-all gap-3">
               <div className="shrink-0 flex items-center justify-center">
-                <BankLogo provider={provider} customLogo={logoB64} color={color} size={26} />
+                <BankLogo provider={provider} color={color} size={26} />
               </div>
               <input
                 id="fProv"
@@ -472,46 +455,7 @@ export function EditorSheet({
             />
           </div>
 
-          {/* Optional Custom Logo Upload */}
-          <div>
-            <label className="block text-xs font-semibold text-muted mb-1.5">
-              Custom Logo (optional, max 200 KB)
-            </label>
-            <div className="flex items-center gap-3 p-3 bg-surface rounded-2xl border border-line/40 shadow-sm">
-              {logoB64 ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logoB64}
-                  alt="Custom Logo"
-                  className="w-12 h-12 object-contain rounded-lg bg-bg p-1 border border-line/40"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-lg bg-bg border border-line/40 flex items-center justify-center text-xs text-muted">
-                  None
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <label className="inline-block px-3 py-1.5 rounded-xl bg-bg hover:bg-bg/80 border border-line text-xs font-semibold cursor-pointer">
-                  <span>{logoB64 ? 'Replace Logo' : 'Upload PNG/SVG'}</span>
-                  <input
-                    type="file"
-                    accept="image/png,image/svg+xml,image/jpeg"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                  />
-                </label>
-                {logoB64 && (
-                  <button
-                    type="button"
-                    onClick={() => setLogoB64(null)}
-                    className="ml-2 text-xs text-red-500 hover:underline cursor-pointer"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+
 
           {/* Payment QR Slot */}
           <div>

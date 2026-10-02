@@ -762,12 +762,68 @@ export function findBankBrand(name: string): BankBrandInfo | null {
 }
 
 /**
+ * Generates smart initials/monogram for any bank, e-wallet, or custom merchant name.
+ * Handles acronyms (BPI -> BPI, BDO -> BDO), multi-word names (Bank of Commerce -> BC),
+ * CamelCase / PascalCase single words (PayMaya -> PM, GCash -> GC, SeaBank -> SB),
+ * and standard single words (Store -> ST, Maya -> MA).
+ */
+export function getProviderInitials(provider?: string | null): string {
+  if (!provider || !provider.trim()) {
+    return 'QR';
+  }
+
+  const clean = provider.trim();
+
+  // Short all-uppercase acronyms (e.g. "BPI", "BDO", "RCBC", "PNB", "DBP", "UBP")
+  if (/^[A-Z0-9]{2,4}$/.test(clean)) {
+    return clean;
+  }
+
+  // Split by whitespace, hyphens, slashes, underscores, or dots
+  const rawWords = clean.split(/[\s\-_/.]+/).filter(Boolean);
+
+  // Stop words to ignore when extracting initials from multi-word names
+  const STOP_WORDS = new Set(['of', 'the', 'and', '&', 'de', 'ng', 'in', 'at', 'sa', 'for']);
+  const meaningfulWords = rawWords.filter((w) => !STOP_WORDS.has(w.toLowerCase()));
+  const wordsToUse = meaningfulWords.length > 0 ? meaningfulWords : rawWords;
+
+  if (wordsToUse.length >= 2) {
+    // E.g., "Bank of Commerce" -> "BC", "Union Bank" -> "UB", "Palawan Express" -> "PE"
+    const firstWord = wordsToUse[0] ?? '';
+    const secondWord = wordsToUse[1] ?? '';
+    const first = firstWord.charAt(0);
+    const second = secondWord.charAt(0);
+    return (first + second).toUpperCase();
+  }
+
+  // Single word: e.g. "PayMaya", "GCash", "SeaBank", "GrabPay", "ShopeePay", "Store"
+  const singleWord = wordsToUse[0] ?? clean;
+
+  // Extract CamelCase / PascalCase components
+  // e.g. "PayMaya" -> ["Pay", "Maya"] -> "PM"
+  // e.g. "GCash" -> ["G", "Cash"] -> "GC"
+  // e.g. "CoinsPH" -> ["Coins", "PH"] -> "CP"
+  const camelChunks = singleWord.match(/([A-Z]+(?=[A-Z][a-z0-9])|[A-Z][a-z0-9]*|[a-z0-9]+)/g) || [];
+
+  if (camelChunks.length >= 2) {
+    const firstChunk = camelChunks[0] ?? '';
+    const secondChunk = camelChunks[1] ?? '';
+    const first = firstChunk.charAt(0);
+    const second = secondChunk.charAt(0);
+    return (first + second).toUpperCase();
+  }
+
+  // Fallback: take first 2 characters uppercase (e.g. "Store" -> "ST", "Maya" -> "MA")
+  return singleWord.slice(0, 2).toUpperCase();
+}
+
+/**
  * Get the logo URL for any bank name. If matched to a PH bank, returns its official logo API URL.
  */
 export function getLogoForProvider(providerName: string, customLogo?: string | null): string | null {
   if (customLogo) return customLogo;
   const brand = findBankBrand(providerName);
-  if (brand) {
+  if (brand?.domain) {
     return getBankLogoUrl(brand.domain, 128);
   }
   return null;

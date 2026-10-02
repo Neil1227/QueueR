@@ -495,7 +495,6 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
       <div className="flex items-center justify-center gap-2.5 max-w-[90vw] drop-shadow-sm">
         <BankLogo
           provider={card.provider}
-          customLogo={card.logoB64}
           color={card.color}
           size={32}
         />

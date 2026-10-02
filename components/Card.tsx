@@ -98,7 +98,6 @@ export function Card({
           <div className="flex items-center gap-2.5 min-w-0 pr-2 truncate">
             <BankLogo
               provider={card.provider}
-              customLogo={card.logoB64}
               color={card.color}
               size={28}
             />

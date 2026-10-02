@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { findBankBrand, getBankLogoUrl, getBackupLogoUrl } from '@/lib/bank-logos';
+import { findBankBrand, getBankLogoUrl, getBackupLogoUrl, getProviderInitials } from '@/lib/bank-logos';
 
 interface BankLogoProps {
   provider: string;
@@ -15,7 +15,6 @@ interface BankLogoProps {
 
 export function BankLogo({
   provider,
-  customLogo,
   color,
   size = 28,
   className = '',
@@ -27,30 +26,24 @@ export function BankLogo({
   const [hasError, setHasError] = useState(false);
   const [triedBackup, setTriedBackup] = useState(false);
 
-  const initialText = brand?.shortName
-    ? brand.shortName.slice(0, 3).toUpperCase()
-    : provider
-    ? provider.slice(0, 2).toUpperCase()
-    : 'QR';
-
+  // Generate clean initials monogram for provider (e.g. PayMaya -> PM, GCash -> GC, BPI -> BPI)
+  const initialText = getProviderInitials(provider);
   const brandColor = color || brand?.color || '#007AFF';
 
-  // Compute logo image source
+  // Compute logo image source from official bank brand domain if known
   useEffect(() => {
     setHasError(false);
     setTriedBackup(false);
 
-    if (customLogo) {
-      setImgSrc(customLogo);
-    } else if (brand?.domain) {
+    if (brand?.domain) {
       setImgSrc(getBankLogoUrl(brand.domain, 128));
     } else {
       setImgSrc(null);
     }
-  }, [provider, customLogo, brand?.domain]);
+  }, [provider, brand?.domain]);
 
   const handleError = () => {
-    if (!triedBackup && brand?.domain && !customLogo) {
+    if (!triedBackup && brand?.domain) {
       setTriedBackup(true);
       setImgSrc(getBackupLogoUrl(brand.domain));
     } else {
@@ -92,9 +85,9 @@ export function BankLogo({
           style={{
             backgroundColor: brandColor,
             color: '#FFFFFF',
-            fontSize: `${Math.max(9, Math.floor(size * 0.38))}px`,
+            fontSize: `${Math.max(9, Math.floor(size * (initialText.length > 2 ? 0.32 : 0.38)))}px`,
           }}
-          className="w-full h-full flex items-center justify-center font-bold tracking-tight uppercase select-none rounded-full"
+          className="w-full h-full flex items-center justify-center font-bold tracking-tight uppercase select-none rounded-full shadow-inner"
         >
           {initialText}
         </span>
@@ -102,3 +95,4 @@ export function BankLogo({
     </div>
   );
 }
+

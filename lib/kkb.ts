@@ -7,7 +7,7 @@
 import { Card } from './schema';
 import { fgFor, getCardGradientColors } from './colors';
 import { drawQR, loadBitmap } from './qr';
-import { findBankBrand, getBankLogoUrl } from './bank-logos';
+import { findBankBrand, getBankLogoUrl, getProviderInitials } from './bank-logos';
 import { embedAmountInQRPh, isEMVCoPayload } from './qr-ph';
 
 export type KKBRoundingMode = 'exact' | 'up_1' | 'up_5' | 'up_10';
@@ -191,7 +191,7 @@ export async function generateKKBReceiptCanvas(
 
   // Provider Logo & Name
   const brand = findBankBrand(card.provider);
-  const logoUrl = card.logoB64 || (brand?.domain ? getBankLogoUrl(brand.domain, 128) : null);
+  const logoUrl = brand?.domain ? getBankLogoUrl(brand.domain, 128) : null;
   let drawnLogo = false;
 
   if (logoUrl) {
@@ -226,10 +226,35 @@ export async function generateKKBReceiptCanvas(
   }
 
   if (!drawnLogo) {
-    ctx.fillStyle = '#1D1D1F';
-    ctx.font = '700 34px Inter, sans-serif';
+    const initials = getProviderInitials(card.provider);
+    const bSize = 54;
+    const text = `${card.provider} Payment`;
+    ctx.font = '700 32px Inter, sans-serif';
+    const tMetrics = ctx.measureText(text);
+    const totalW = bSize + 16 + tMetrics.width;
+    const sX = (CANVAS_WIDTH - totalW) / 2;
+
+    // Draw badge circle
+    ctx.save();
+    ctx.fillStyle = card.color || '#007AFF';
+    ctx.beginPath();
+    ctx.arc(sX + bSize / 2, innerY, bSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Draw initials
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = `700 ${initials.length > 2 ? 18 : 22}px Inter, sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText(`${card.provider} Payment`, CANVAS_WIDTH / 2, innerY);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(initials, sX + bSize / 2, innerY);
+
+    // Draw text
+    ctx.fillStyle = '#1D1D1F';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 32px Inter, sans-serif';
+    ctx.fillText(text, sX + bSize + 16, innerY);
   }
 
   innerY += 45;

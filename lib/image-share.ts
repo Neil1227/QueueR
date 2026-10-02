@@ -12,7 +12,7 @@ import { Card } from './schema';
 import { fgFor, getCardGradientColors } from './colors';
 import { drawQR, loadBitmap } from './qr';
 import { formatPreviewNumber, PreviewNumberFormat } from './cards';
-import { findBankBrand, getBankLogoUrl } from './bank-logos';
+import { findBankBrand, getBankLogoUrl, getProviderInitials } from './bank-logos';
 import { embedAmountInQRPh, isEMVCoPayload } from './qr-ph';
 
 export interface ImageShareOptions {
@@ -88,10 +88,10 @@ export async function generateShareCanvas(
   ctx.arc(CANVAS_WIDTH * 0.1, CANVAS_HEIGHT * 0.9, 350, 0, Math.PI * 2);
   ctx.fill();
 
-  // 2. Top Header / Wordmark or Custom/API Logo
+  // 2. Top Header / Wordmark or Bank Logo
   const headerY = 130;
   const brand = findBankBrand(card.provider);
-  const logoUrl = card.logoB64 || (brand?.domain ? getBankLogoUrl(brand.domain, 128) : null);
+  const logoUrl = brand?.domain ? getBankLogoUrl(brand.domain, 128) : null;
 
   let drawnLogo = false;
   if (logoUrl) {
@@ -258,11 +258,38 @@ export async function generateShareCanvas(
 }
 
 function renderWordmark(ctx: CanvasRenderingContext2D, card: Card, y: number, fg: string) {
-  ctx.fillStyle = fg;
-  ctx.font = '700 48px Inter, -apple-system, sans-serif';
-  ctx.textAlign = 'center';
+  const initials = getProviderInitials(card.provider);
+  const badgeSize = 72;
   const text = card.provider + (card.label ? ` · ${card.label}` : '');
-  ctx.fillText(text, CANVAS_WIDTH / 2, y);
+  ctx.font = '700 44px Inter, -apple-system, sans-serif';
+  const textMetrics = ctx.measureText(text);
+  const totalWidth = badgeSize + 20 + textMetrics.width;
+  const startX = (CANVAS_WIDTH - totalWidth) / 2;
+
+  // Draw badge circle in card color
+  ctx.save();
+  ctx.fillStyle = card.color || '#007AFF';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.22)';
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 4;
+  ctx.beginPath();
+  ctx.arc(startX + badgeSize / 2, y, badgeSize / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Draw initials inside circle
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `700 ${initials.length > 2 ? 26 : 30}px Inter, -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(initials, startX + badgeSize / 2, y);
+
+  // Draw provider text
+  ctx.fillStyle = fg;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.font = '700 44px Inter, -apple-system, sans-serif';
+  ctx.fillText(text, startX + badgeSize + 20, y);
 }
 
 /**
