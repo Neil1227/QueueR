@@ -29,10 +29,7 @@ export function CardStack({
 }: CardStackProps) {
   const [selectedCategory, setSelectedCategory] = useState<CardCategory | 'all'>('all');
   const [announcement, setAnnouncement] = useState<string>('');
-
-  if (loading && cards.length === 0) {
-    return <CardStackSkeleton />;
-  }
+  const [customDeck, setCustomDeck] = useState<CardType[] | null>(null);
 
   // Calculate card counts per category
   const categoryCounts = useMemo(() => {
@@ -50,34 +47,19 @@ export function CardStack({
     return cards.filter((c) => (c.category || 'personal') === selectedCategory);
   }, [cards, selectedCategory]);
 
-  // Temporary client-side deck order: index 0 is front card, higher indices are stacked behind
-  const [deck, setDeck] = useState<CardType[]>(filteredCards);
-  const prevFilteredRef = useRef<CardType[]>(filteredCards);
+  // Synchronous displayCards: always immediate, never lagging or flashing an empty state
+  const displayCards = useMemo(() => {
+    if (!customDeck) return filteredCards;
+    const valid = customDeck.filter((c) => filteredCards.some((fc) => fc.id === c.id));
+    const added = filteredCards.filter((fc) => !customDeck.some((c) => c.id === fc.id));
+    const updated = valid.map((c) => filteredCards.find((fc) => fc.id === c.id) || c);
+    return [...updated, ...added];
+  }, [customDeck, filteredCards]);
 
-  // Synchronize deck when cards or category filter changes
-  useEffect(() => {
-    setDeck((currentDeck) => {
-      if (filteredCards.length === 0) {
-        return [];
-      }
-
-      // Check for removed cards
-      const validCards = currentDeck.filter((dc) => filteredCards.some((c) => c.id === dc.id));
-      // Update any modified card details in place
-      const updatedDeck = validCards.map((dc) => {
-        const fresh = filteredCards.find((c) => c.id === dc.id);
-        return fresh || dc;
-      });
-
-      // Check for newly added cards -> append to the back of the deck
-      const newCards = filteredCards.filter((c) => !currentDeck.some((dc) => dc.id === c.id));
-      if (newCards.length > 0) {
-        return [...updatedDeck, ...newCards];
-      }
-
-      return updatedDeck.length > 0 ? updatedDeck : filteredCards;
-    });
-  }, [filteredCards]);
+  const handleSelectCategory = (cat: CardCategory | 'all') => {
+    setSelectedCategory(cat);
+    setCustomDeck(null);
+  };
 
   const handleCardClick = (card: CardType, slotIndex: number) => {
     if (slotIndex === 0) {
@@ -93,8 +75,8 @@ export function CardStack({
         // Ignore haptics error
       }
 
-      const newDeck = bringToFront(deck, card.id);
-      setDeck(newDeck);
+      const newDeck = bringToFront(displayCards, card.id);
+      setCustomDeck(newDeck);
       setAnnouncement(`${card.provider} is now in front`);
     }
   };
@@ -103,12 +85,12 @@ export function CardStack({
     ? CARD_CATEGORIES.find((c) => c.id === selectedCategory)
     : null;
 
-  const countText = deck.length
-    ? `${deck.length} ${deck.length === 1 ? 'card' : 'cards'}`
+  const countText = displayCards.length
+    ? `${displayCards.length} ${displayCards.length === 1 ? 'card' : 'cards'}`
     : '';
 
   // Calculate visible peeking strips (up to 5 peeking strips above the front card)
-  const totalStrips = Math.min(Math.max(0, deck.length - 1), 5);
+  const totalStrips = Math.min(Math.max(0, displayCards.length - 1), 5);
   // Container height = peeking header strips (56px each) + full front card height (210px)
   const containerHeight = totalStrips * 56 + 210;
 
@@ -143,7 +125,7 @@ export function CardStack({
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
             <button
               type="button"
-              onClick={() => setSelectedCategory('all')}
+              onClick={() => handleSelectCategory('all')}
               className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm ${selectedCategory === 'all'
                   ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F]'
                   : 'bg-surface text-muted hover:text-text border border-line/40'
@@ -172,7 +154,7 @@ export function CardStack({
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => setSelectedCategory(cat.id)}
+                  onClick={() => handleSelectCategory(cat.id)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm ${isSelected
                       ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F]'
                       : 'bg-surface text-muted hover:text-text border border-line/40'
@@ -209,7 +191,7 @@ export function CardStack({
               </p>
             </div>
           </div>
-        ) : deck.length === 0 ? (
+        ) : displayCards.length === 0 ? (
           // Category-specific Empty State
           <div className="text-center py-16 px-6 text-muted space-y-4 animate-fade-in">
             <div className="w-16 h-16 rounded-full bg-surface border border-line/40 mx-auto flex items-center justify-center text-accent shadow-sm">
@@ -237,13 +219,13 @@ export function CardStack({
             style={{ height: `${containerHeight}px` }}
             className="relative w-full transition-[height] duration-450 ease-spring"
           >
-            {deck.map((card, idx) => (
+            {displayCards.map((card, idx) => (
               <Card
                 key={card.id}
                 card={card}
                 slotIndex={idx}
                 totalStrips={totalStrips}
-                totalCards={deck.length}
+                totalCards={displayCards.length}
                 isFront={idx === 0}
                 numberFormat={numberFormat}
                 onClick={() => handleCardClick(card, idx)}

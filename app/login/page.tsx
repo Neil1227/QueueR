@@ -46,6 +46,7 @@ function LoginContent() {
   const { showToast } = useToast();
 
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -53,9 +54,13 @@ function LoginContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showPinSetup, setShowPinSetup] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // If already logged in, route immediately
   useEffect(() => {
-    if (!authStateLoading && (user || isGuest)) {
+    if (mounted && !authStateLoading && (user || isGuest)) {
       if (!hasConfiguredPin()) {
         setShowPinSetup(true);
       } else {
@@ -63,7 +68,7 @@ function LoginContent() {
         router.replace(redirectPath);
       }
     }
-  }, [user, isGuest, authStateLoading, router, redirectPath]);
+  }, [mounted, user, isGuest, authStateLoading, router, redirectPath]);
 
   const activateSession = () => {
     if (typeof window !== 'undefined') {
@@ -169,7 +174,7 @@ function LoginContent() {
 
   const activeDomain = unauthorizedDomain || (typeof window !== 'undefined' ? window.location.hostname : '');
 
-  if (authStateLoading || ((user || isGuest) && !showPinSetup)) {
+  if (!mounted || authStateLoading || ((user || isGuest) && !showPinSetup)) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />

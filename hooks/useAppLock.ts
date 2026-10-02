@@ -22,41 +22,13 @@ import {
 } from '@/lib/app-lock';
 
 export function useAppLock() {
-  const [hasPinState, setHasPinState] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') return hasConfiguredPin();
-    return false;
-  });
-  const [hasPasskeyState, setHasPasskeyState] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') return hasConfiguredPasskey();
-    return false;
-  });
-  const [isLocked, setIsLocked] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const pinExists = hasConfiguredPin();
-      const passkeyExists = hasConfiguredPasskey();
-      if (pinExists || passkeyExists) {
-        const isSessionActive = sessionStorage.getItem('qr_wallet_session_active') === 'true';
-        return !isSessionActive;
-      }
-    }
-    return false;
-  });
-  const [lockTimeoutState, setLockTimeoutState] = useState<LockTimeoutOption>(() => {
-    if (typeof window !== 'undefined') return getLockTimeout();
-    return 0;
-  });
-  const [blurPrivacyState, setBlurPrivacyState] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') return isBlurPrivacyEnabled();
-    return false;
-  });
-  const [isBiometricSupported, setIsBiometricSupported] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') return hasWebAuthn();
-    return false;
-  });
-  const [lockoutSeconds, setLockoutSeconds] = useState<number>(() => {
-    if (typeof window !== 'undefined') return getLockoutRemainingSeconds();
-    return 0;
-  });
+  const [hasPinState, setHasPinState] = useState(false);
+  const [hasPasskeyState, setHasPasskeyState] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockTimeoutState, setLockTimeoutState] = useState<LockTimeoutOption>(0);
+  const [blurPrivacyState, setBlurPrivacyState] = useState(false);
+  const [isBiometricSupported, setIsBiometricSupported] = useState(false);
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
 
   const backgroundTimeRef = useRef<number | null>(null);
 
@@ -65,13 +37,25 @@ export function useAppLock() {
     if (typeof window === 'undefined') return;
     const pinExists = hasConfiguredPin();
     const passkeyExists = hasConfiguredPasskey();
+    const timeout = getLockTimeout();
+    const blur = isBlurPrivacyEnabled();
     const bioSupported = hasWebAuthn();
     const remaining = getLockoutRemainingSeconds();
 
     setHasPinState(pinExists);
     setHasPasskeyState(passkeyExists);
+    setLockTimeoutState(timeout);
+    setBlurPrivacyState(blur);
     setIsBiometricSupported(bioSupported);
     setLockoutSeconds(remaining);
+
+    // Lock on launch/reopen if security is enabled and session is not active
+    if (pinExists || passkeyExists) {
+      const isSessionActive = sessionStorage.getItem('qr_wallet_session_active') === 'true';
+      if (!isSessionActive) {
+        setIsLocked(true);
+      }
+    }
   }, []);
 
   // Lockout countdown timer

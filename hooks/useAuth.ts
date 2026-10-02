@@ -33,29 +33,28 @@ export interface AuthState {
 }
 
 export function useAuth(): AuthState {
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window !== 'undefined') {
-      const localGuestId = localStorage.getItem('qr_wallet_local_guest_uid');
-      if (localGuestId) {
-        return { uid: localGuestId, isAnonymous: true, email: null, displayName: 'Local Guest' } as unknown as User;
-      }
-      const localGoogleUser = localStorage.getItem('qr_wallet_local_google_user');
-      if (localGoogleUser) {
-        try {
-          return JSON.parse(localGoogleUser);
-        } catch {
-          // ignore
-        }
-      }
-    }
-    return null;
-  });
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Check local guest or local google user
+    const localGuestId = localStorage.getItem('qr_wallet_local_guest_uid');
+    const localGoogleUser = localStorage.getItem('qr_wallet_local_google_user');
+
     if (!auth) {
+      if (localGoogleUser) {
+        try {
+          setUser(JSON.parse(localGoogleUser));
+        } catch {
+          setUser(null);
+        }
+      } else if (localGuestId) {
+        setUser({ uid: localGuestId, isAnonymous: true, email: null, displayName: 'Local Guest' } as unknown as User);
+      }
       setLoading(false);
       return;
     }

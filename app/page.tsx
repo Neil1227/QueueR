@@ -25,6 +25,7 @@ import {
 
 export default function HomePage() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const { user, isGuest, loading: authLoading, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
 
@@ -48,22 +49,26 @@ export default function HomePage() {
   const [isForgotPinOpen, setIsForgotPinOpen] = useState(false);
   const [isResetPinOpen, setIsResetPinOpen] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Authentication gate: If not logged in at all, redirect to /login
   useEffect(() => {
-    if (!authLoading && !user && !isGuest) {
+    if (mounted && !authLoading && !user && !isGuest) {
       router.replace('/login');
     }
-  }, [user, isGuest, authLoading, router]);
+  }, [mounted, user, isGuest, authLoading, router]);
 
   // Session gate on reopen: If PIN is set and session is not active, enforce lock screen
   useEffect(() => {
-    if (typeof window !== 'undefined' && hasPin) {
+    if (mounted && typeof window !== 'undefined' && hasPin) {
       const isSessionActive = sessionStorage.getItem('qr_wallet_session_active') === 'true';
       if (!isSessionActive) {
         lockManually();
       }
     }
-  }, [hasPin, lockManually]);
+  }, [mounted, hasPin, lockManually]);
 
   const {
     cards,
@@ -206,7 +211,7 @@ export default function HomePage() {
     receiveCard || isEditorOpen || isSettingsOpen || isLocked || !hasPin || isForgotPinOpen || isResetPinOpen
   );
 
-  if (authLoading || (!user && !isGuest)) {
+  if (!mounted || authLoading || (cardsLoading && cards.length === 0) || (!user && !isGuest)) {
     return <CardStackSkeleton />;
   }
 
