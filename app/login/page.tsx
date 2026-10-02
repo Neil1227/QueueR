@@ -84,7 +84,11 @@ function LoginContent() {
         setShowPinSetup(true);
       } else {
         activateSession();
-        router.replace(redirectPath);
+        if (typeof window !== 'undefined') {
+          window.location.href = redirectPath;
+        } else {
+          router.replace(redirectPath);
+        }
       }
     })();
 
@@ -114,11 +118,15 @@ function LoginContent() {
       }
     }
 
+    activateSession();
     if (!hasPin) {
       setShowPinSetup(true);
     } else {
-      activateSession();
-      router.replace(redirectPath);
+      if (typeof window !== 'undefined') {
+        window.location.href = redirectPath;
+      } else {
+        router.replace(redirectPath);
+      }
     }
   };
 
@@ -135,7 +143,11 @@ function LoginContent() {
     activateSession();
     showToast('4-Digit Security PIN configured');
     setShowPinSetup(false);
-    router.replace(redirectPath);
+    if (typeof window !== 'undefined') {
+      window.location.href = redirectPath;
+    } else {
+      router.replace(redirectPath);
+    }
   };
 
   const handleGoogleLogin = async (forceRedirect = false) => {

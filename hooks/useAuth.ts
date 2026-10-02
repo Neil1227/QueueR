@@ -36,6 +36,21 @@ function cacheSessionUser(user: User | null) {
   } catch {}
 }
 
+function getInitialUser(): User | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = localStorage.getItem(SESSION_USER_KEY);
+    if (cached) return JSON.parse(cached);
+    const localGoogle = localStorage.getItem('qr_wallet_local_google_user');
+    if (localGoogle) return JSON.parse(localGoogle);
+    const localGuest = localStorage.getItem('qr_wallet_local_guest_uid');
+    if (localGuest) {
+      return { uid: localGuest, isAnonymous: true, email: null, displayName: 'Local Guest' } as unknown as User;
+    }
+  } catch {}
+  return null;
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(message)), timeoutMs);
@@ -67,38 +82,18 @@ export interface AuthState {
 }
 
 export function useAuth(): AuthState {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(getInitialUser);
+  const [loading, setLoading] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return !getInitialUser();
+  });
   const [error, setError] = useState<string | null>(null);
   const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Instantly hydrate cached session (google, email, guest) for 0ms initial load
-    const cachedSession = localStorage.getItem(SESSION_USER_KEY);
-    const localGuestId = localStorage.getItem('qr_wallet_local_guest_uid');
-    const localGoogleUser = localStorage.getItem('qr_wallet_local_google_user');
     const isRedirectPending = sessionStorage.getItem('qr_wallet_auth_redirect_pending') === 'true';
-
-    if (cachedSession) {
-      try {
-        setUser(JSON.parse(cachedSession));
-        setLoading(false);
-      } catch {
-        setUser(null);
-      }
-    } else if (localGoogleUser) {
-      try {
-        setUser(JSON.parse(localGoogleUser));
-        setLoading(false);
-      } catch {
-        setUser(null);
-      }
-    } else if (localGuestId) {
-      setUser({ uid: localGuestId, isAnonymous: true, email: null, displayName: 'Local Guest' } as unknown as User);
-      setLoading(false);
-    }
 
     if (!auth) {
       setLoading(false);
@@ -115,7 +110,7 @@ export function useAuth(): AuthState {
         }
         setLoading(false);
       }
-    }, isRedirectPending ? 8000 : 5000);
+    }, isRedirectPending ? 8000 : 4000);
 
     const initAuth = async () => {
       // 1. Process OAuth redirect result first
@@ -223,11 +218,16 @@ export function useAuth(): AuthState {
       }
       cacheSessionUser(simulatedGoogleUser);
       setUser(simulatedGoogleUser);
+      setLoading(false);
       return simulatedGoogleUser;
     }
     try {
       const loggedUser = await signInWithGoogle(forceRedirect);
-      if (loggedUser) cacheSessionUser(loggedUser);
+      if (loggedUser) {
+        cacheSessionUser(loggedUser);
+        setUser(loggedUser);
+        setLoading(false);
+      }
       return loggedUser;
     } catch (err: any) {
       const msg = err?.message || 'Google sign-in failed';
@@ -244,7 +244,11 @@ export function useAuth(): AuthState {
     setUnauthorizedDomain(null);
     try {
       const loggedUser = await signInWithEmail(email, pass);
-      if (loggedUser) cacheSessionUser(loggedUser);
+      if (loggedUser) {
+        cacheSessionUser(loggedUser);
+        setUser(loggedUser);
+        setLoading(false);
+      }
       return loggedUser;
     } catch (err: any) {
       const msg = err?.message || 'Email sign-in failed';
@@ -261,7 +265,11 @@ export function useAuth(): AuthState {
     setUnauthorizedDomain(null);
     try {
       const newUser = await signUpWithEmail(email, pass);
-      if (newUser) cacheSessionUser(newUser);
+      if (newUser) {
+        cacheSessionUser(newUser);
+        setUser(newUser);
+        setLoading(false);
+      }
       return newUser;
     } catch (err: any) {
       const msg = err?.message || 'Sign up failed';
@@ -296,6 +304,7 @@ export function useAuth(): AuthState {
     if (!auth) {
       cacheSessionUser(localGuestUser);
       setUser(localGuestUser);
+      setLoading(false);
       return localGuestUser;
     }
 
@@ -307,6 +316,7 @@ export function useAuth(): AuthState {
       );
       cacheSessionUser(firebaseUser);
       setUser(firebaseUser);
+      setLoading(false);
       return firebaseUser;
     } catch (err: any) {
       // If Firebase Anonymous sign-in is disabled / restricted (auth/admin-restricted-operation),
@@ -314,10 +324,10 @@ export function useAuth(): AuthState {
       console.warn('Firebase Anonymous sign-in not enabled; continuing in Offline Local Guest mode:', err?.message);
       cacheSessionUser(localGuestUser);
       setUser(localGuestUser);
+      setLoading(false);
       return localGuestUser;
     }
   };
-
 
   const handleSignOut = async () => {
     setError(null);

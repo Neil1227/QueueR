@@ -34,7 +34,11 @@ import {
   Sun,
   Moon,
   Monitor,
+  Smartphone,
+  Share,
+  PlusSquare,
 } from 'lucide-react';
+import { isStandalone } from '@/lib/firebase';
 import { ThemeMode } from '@/lib/theme';
 import { GoogleIcon } from './GoogleIcon';
 
@@ -129,14 +133,28 @@ export function SettingsSheet({
   const [importedCardsSummary, setImportedCardsSummary] = useState<Card[] | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
-  // Load last backup timestamp on open
+  // PWA Install state in Settings
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+  const [isIOSDevice, setIsIOSDevice] = useState(false);
+  const [showSettingsInstallGuide, setShowSettingsInstallGuide] = useState(false);
+
+  // Load last backup timestamp and PWA state on open
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsAppInstalled(isStandalone());
+      const ua = window.navigator.userAgent;
+      setIsIOSDevice(/iPhone|iPad|iPod/i.test(ua) && !(window as any).MSStream);
+    }
     if (isOpen) {
       const last = getLastBackupDate();
       setLastBackupDateState(last);
       setBackupReminderDue(isBackupReminderDue());
     }
   }, [isOpen]);
+
+  const handleSettingsInstall = () => {
+    setShowSettingsInstallGuide(true);
+  };
 
   if (!isOpen) return null;
 
@@ -946,6 +964,76 @@ export function SettingsSheet({
                 </div>
               )}
             </div>
+          </section>
+          {/* PWA / Home Screen Section */}
+          <section className="bg-surface rounded-2xl p-5 shadow-sm border border-line/30 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-blue-500/10 text-accent flex items-center justify-center font-bold">
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-semibold truncate">App & Home Screen</h3>
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                      isAppInstalled
+                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-accent/20 text-accent'
+                    }`}
+                  >
+                    {isAppInstalled ? 'Installed' : 'Available'}
+                  </span>
+                </div>
+                <p className="text-xs text-muted leading-tight mt-0.5">
+                  {isAppInstalled
+                    ? 'QueueR is running as a standalone app on your device.'
+                    : 'Add to Home Screen for fast 1-tap payment card access.'}
+                </p>
+              </div>
+            </div>
+
+            {!isAppInstalled && (
+              <div className="pt-2 border-t border-line/20 space-y-2">
+                <button
+                  type="button"
+                  onClick={handleSettingsInstall}
+                  className="w-full py-2.5 px-3 rounded-xl bg-accent text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm hover:bg-accent/90 active:scale-98 transition-all cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{isIOSDevice ? 'Add to iOS Home Screen' : 'Add to Home Screen / Install'}</span>
+                </button>
+
+                {showSettingsInstallGuide && (
+                  <div className="p-3.5 bg-bg rounded-xl border border-line/40 text-xs space-y-2 animate-fade-in text-left">
+                    <p className="font-semibold text-text">
+                      {isIOSDevice ? 'How to Add on iOS (Safari):' : 'How to Add on Android (Chrome):'}
+                    </p>
+                    {isIOSDevice ? (
+                      <ol className="list-decimal list-inside space-y-1.5 text-muted text-[11.5px]">
+                        <li>
+                          Tap the <strong className="text-accent inline-flex items-center gap-0.5"><Share className="w-3 h-3 inline" /> Share</strong> button in your Safari toolbar.
+                        </li>
+                        <li>
+                          Scroll down and tap <strong className="text-text inline-flex items-center gap-0.5"><PlusSquare className="w-3 h-3 inline" /> Add to Home Screen</strong>.
+                        </li>
+                        <li>
+                          Tap <strong className="text-accent">Add</strong> in the top-right corner.
+                        </li>
+                      </ol>
+                    ) : (
+                      <ol className="list-decimal list-inside space-y-1.5 text-muted text-[11.5px]">
+                        <li>
+                          Tap the <strong className="text-text">⋮ (three dots)</strong> browser menu in Chrome.
+                        </li>
+                        <li>
+                          Select <strong className="text-accent inline-flex items-center gap-0.5"><Smartphone className="w-3 h-3 inline" /> Install app</strong> or <strong className="text-text">Add to Home screen</strong>.
+                        </li>
+                      </ol>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Account Section */}

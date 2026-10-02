@@ -394,11 +394,19 @@ export async function recordCardUse(userId: string, cardId: string): Promise<voi
  */
 export async function getUserMeta(userId: string): Promise<UserMeta | null> {
   if (!db || isLocalOfflineUser(userId)) return null;
-  const metaRef = doc(db, 'users', userId, 'meta', 'settings');
-  const snap = await getDoc(metaRef);
-  if (!snap.exists()) return null;
-  const parsed = UserMetaSchema.safeParse(snap.data());
-  return parsed.success ? parsed.data : null;
+  try {
+    const metaRef = doc(db, 'users', userId, 'meta', 'settings');
+    const snap = await Promise.race([
+      getDoc(metaRef),
+      new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
+    ]);
+    if (!snap || !snap.exists()) return null;
+    const parsed = UserMetaSchema.safeParse(snap.data());
+    return parsed.success ? parsed.data : null;
+  } catch (err) {
+    console.warn('getUserMeta notice:', err);
+    return null;
+  }
 }
 
 /**
