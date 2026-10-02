@@ -131,54 +131,17 @@ export function SettingsSheet({
 
   if (!isOpen) return null;
 
-  const handleGoogleSignIn = async () => {
-    setAuthLoading(true);
-    try {
-      await signInWithGoogle();
-      showToast('Signed in with Google');
-    } catch (err: any) {
-      showToast(err?.message || 'Google sign-in failed');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleEmailAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return;
-    setAuthLoading(true);
-    try {
-      if (authMode === 'signup') {
-        await signUpWithEmail(email, password);
-        showToast('Account created & signed in');
-      } else {
-        await signInWithEmail(email, password);
-        showToast('Signed in successfully');
-      }
-      setEmail('');
-      setPassword('');
-    } catch (err: any) {
-      showToast(err?.message || 'Authentication failed');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleGuestSignIn = async () => {
-    setAuthLoading(true);
-    try {
-      await signInGuest();
-      showToast('Started guest session');
-    } catch (err: any) {
-      showToast(err?.message || 'Guest sign-in failed');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
   const handleSignOut = async () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('qr_wallet_session_active');
+      sessionStorage.removeItem('qr_wallet_e2ee_passphrase');
+    }
     await signOut();
     showToast('Signed out');
+    onClose();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   };
 
   const handleE2EESubmit = async (e: React.FormEvent) => {
@@ -713,43 +676,28 @@ export function SettingsSheet({
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-semibold">End-to-End Encryption</h3>
-                  {isE2EEActive && (
-                    <span className="text-[11px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
-                      ACTIVE
-                    </span>
-                  )}
+                  <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+                    AUTO-ENCRYPT ACTIVE
+                  </span>
                 </div>
                 <p className="text-xs text-muted">
-                  Encrypt numbers and QR payloads on-device with WebCrypto AES-GCM
+                  All card names, account numbers, and QR codes are automatically AES-256 encrypted before cloud sync.
                 </p>
               </div>
             </div>
 
             <div className="space-y-3 pt-2 text-sm">
-              {isE2EEActive ? (
-                <div className="flex justify-between items-center bg-emerald-500/10 p-3 rounded-xl">
-                  <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-                    Vault is currently unlocked. New cards are encrypted before sync.
-                  </span>
-                  <button
-                    type="button"
-                    onClick={onLockE2EE}
-                    className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 underline cursor-pointer"
-                  >
-                    Lock
-                  </button>
-                </div>
-              ) : showPassphraseInput ? (
+              {showPassphraseInput ? (
                 <form onSubmit={handleE2EESubmit} className="space-y-2">
                   <input
                     type="password"
-                    placeholder="Enter E2EE passphrase"
+                    placeholder="Enter custom E2EE master passphrase"
                     value={passphrase}
                     onChange={(e) => setPassphrase(e.target.value)}
                     className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
                   />
-                  <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-snug">
-                    Important: We never store your passphrase. If lost, encrypted data is permanently unrecoverable.
+                  <p className="text-[11px] text-muted leading-snug">
+                    Optional: Adding a custom passphrase adds an extra encryption layer on top of your per-user key.
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -757,7 +705,7 @@ export function SettingsSheet({
                       disabled={isDecrypting}
                       className="flex-1 py-2.5 rounded-xl bg-accent text-white font-semibold text-xs shadow-sm hover:bg-accent/90 cursor-pointer"
                     >
-                      {isDecrypting ? 'Deriving Key...' : 'Unlock / Enable E2EE'}
+                      {isDecrypting ? 'Deriving Key...' : 'Apply Custom Passphrase'}
                     </button>
                     <button
                       type="button"
@@ -769,14 +717,16 @@ export function SettingsSheet({
                   </div>
                 </form>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowPassphraseInput(true)}
-                  className="w-full py-3 px-4 rounded-xl bg-bg hover:bg-bg/80 border border-line text-text font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
-                >
-                  <Key className="w-4 h-4" />
-                  <span>{isE2EEConfigured ? 'Unlock E2EE Vault' : 'Enable E2EE Protection'}</span>
-                </button>
+                <div className="flex items-center justify-between p-3 bg-bg rounded-xl">
+                  <span className="text-xs text-muted">Custom Vault Passphrase</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassphraseInput(true)}
+                    className="text-xs font-semibold text-accent hover:underline cursor-pointer"
+                  >
+                    Configure
+                  </button>
+                </div>
               )}
             </div>
           </section>
@@ -788,142 +738,67 @@ export function SettingsSheet({
                 <User className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-semibold">Account & Cloud Sync</h3>
+                <h3 className="text-base font-semibold">Account & Session</h3>
                 <p className="text-xs text-muted">
                   {user && !isGuest
                     ? user.email || 'Signed in with Google'
-                    : 'Sign in to sync cards across all your devices'}
+                    : 'Using local Guest mode'}
                 </p>
               </div>
             </div>
 
-            {user && !isGuest ? (
-              <div className="pt-2 border-t border-line/20 space-y-3">
-                {/* User Profile Card */}
-                <div className="p-3.5 bg-bg rounded-2xl border border-line/30 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {user.photoURL ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={user.photoURL}
-                        alt={user.displayName || 'Google Profile'}
-                        className="w-11 h-11 rounded-full object-cover border border-white/40 shadow-xs shrink-0"
-                      />
-                    ) : (
-                      <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 text-white font-bold text-base flex items-center justify-center shadow-xs shrink-0">
-                        {(user.displayName || user.email || 'G').charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="min-w-0 truncate">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-sm text-text truncate">
-                          {user.displayName || 'Google Account'}
-                        </span>
-                        <span className="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
-                          <GoogleIcon className="w-2.5 h-2.5" />
-                          <span>Synced</span>
-                        </span>
-                      </div>
-                      <span className="text-xs text-muted truncate block">
-                        {user.email || 'Connected'}
+            <div className="pt-2 border-t border-line/20 space-y-3">
+              {/* User Profile Summary */}
+              <div className="p-3.5 bg-bg rounded-2xl border border-line/30 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  {user?.photoURL ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.photoURL}
+                      alt={user.displayName || 'Profile'}
+                      className="w-11 h-11 rounded-full object-cover border border-white/40 shadow-xs shrink-0"
+                    />
+                  ) : (
+                    <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 text-white font-bold text-base flex items-center justify-center shadow-xs shrink-0">
+                      {(user?.displayName || user?.email || (isGuest ? 'G' : 'U')).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0 truncate">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-sm text-text truncate">
+                        {user?.displayName || (isGuest ? 'Guest Session' : 'Account Active')}
+                      </span>
+                      <span className="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
+                        <span>{isGuest ? 'Offline Mode' : 'Cloud Synced'}</span>
                       </span>
                     </div>
+                    <span className="text-xs text-muted truncate block">
+                      {user?.email || (isGuest ? 'Local storage only' : 'Connected')}
+                    </span>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={handleSignOut}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-red-500 hover:bg-red-500/10 px-3 py-2 rounded-xl transition-all cursor-pointer shrink-0"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign Out</span>
-                  </button>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-3 pt-2">
-                {isGuest && (
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
-                    You are currently using <b>Guest Mode</b>. Sign in with Google to backup & sync your payment cards safely across your devices.
-                  </div>
-                )}
 
-                {/* Primary Google Login Button */}
                 <button
                   type="button"
-                  disabled={authLoading}
-                  onClick={handleGoogleSignIn}
-                  className="w-full py-3 px-4 rounded-2xl bg-surface hover:bg-surface/90 text-text font-semibold text-sm flex items-center justify-center gap-3 shadow-sm border border-line/60 hover:border-accent/50 active:scale-[0.99] transition-all cursor-pointer group"
+                  onClick={handleSignOut}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-red-500 hover:bg-red-500/10 px-3 py-2 rounded-xl transition-all cursor-pointer shrink-0"
                 >
-                  <GoogleIcon className="w-5 h-5 shrink-0 transition-transform group-hover:scale-110" />
-                  <span>{authLoading ? 'Signing in with Google...' : 'Continue with Google'}</span>
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>{isGuest ? 'Exit Session' : 'Sign Out'}</span>
                 </button>
-
-                <div className="flex items-center gap-2 my-1">
-                  <div className="flex-1 h-px bg-line/20" />
-                  <span className="text-[11px] uppercase tracking-wider text-muted font-medium">or email</span>
-                  <div className="flex-1 h-px bg-line/20" />
-                </div>
-
-                {/* Email/Password Auth Form */}
-                <form onSubmit={handleEmailAuth} className="space-y-2">
-                  <input
-                    type="email"
-                    required
-                    placeholder="Email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
-                  />
-                  <input
-                    type="password"
-                    required
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
-                  />
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="submit"
-                      disabled={authLoading}
-                      className="flex-1 py-2.5 rounded-xl bg-accent text-white font-semibold text-sm shadow-sm hover:bg-accent/90 cursor-pointer"
-                    >
-                      {authMode === 'signup' ? 'Create Account' : 'Sign In'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
-                      className="px-3 py-2.5 text-xs text-muted font-medium hover:text-text cursor-pointer"
-                    >
-                      {authMode === 'signin' ? 'Need account?' : 'Have account?'}
-                    </button>
-                  </div>
-                </form>
-
-                {!isGuest && (
-                  <button
-                    type="button"
-                    disabled={authLoading}
-                    onClick={handleGuestSignIn}
-                    className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-muted hover:text-text hover:bg-bg transition-all cursor-pointer"
-                  >
-                    Continue as Guest (Local Offline)
-                  </button>
-                )}
-
-                <div className="text-center pt-1">
-                  <Link
-                    href="/login"
-                    onClick={onClose}
-                    className="text-xs text-accent font-medium hover:underline inline-flex items-center gap-1"
-                  >
-                    <span>Open full login page</span>
-                    <span>→</span>
-                  </Link>
-                </div>
               </div>
-            )}
+
+              <div className="pt-1">
+                <Link
+                  href="/login"
+                  onClick={onClose}
+                  className="w-full py-2.5 px-3 rounded-xl bg-bg hover:bg-bg/80 border border-line text-center text-xs font-semibold text-accent flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <span>Switch Account or Re-authenticate</span>
+                  <span>→</span>
+                </Link>
+              </div>
+            </div>
           </section>
 
           {/* About / Info */}

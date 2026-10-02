@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardInput, CardCategory } from '@/lib/schema';
 import { useAuth } from '@/hooks/useAuth';
 import { useCards } from '@/hooks/useCards';
@@ -19,8 +20,22 @@ import {
 } from '@/lib/cards';
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const router = useRouter();
+  const [sessionReady, setSessionReady] = useState(false);
+  const { user, loading: authLoading } = useAuth();
   const { theme, setTheme } = useTheme();
+
+  // Enforce login screen every time app is closed and reopened (session gate)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isSessionActive = sessionStorage.getItem('qr_wallet_session_active') === 'true';
+      if (!isSessionActive) {
+        router.replace('/login');
+      } else {
+        setSessionReady(true);
+      }
+    }
+  }, [router]);
   const {
     cards,
     loading: cardsLoading,
@@ -136,6 +151,14 @@ export default function HomePage() {
   };
 
   const isAnyOverlayActive = Boolean(receiveCard || isEditorOpen || isSettingsOpen || isLocked);
+
+  if (!sessionReady) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-bg">

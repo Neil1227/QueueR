@@ -113,3 +113,71 @@ export async function decryptText(encryptedString: string, key: CryptoKey): Prom
   const dec = new TextDecoder();
   return dec.decode(decrypted);
 }
+
+/**
+ * Derives a consistent AES-GCM 256-bit key for a user using userId, salt, and optional user passphrase.
+ */
+export async function deriveUserKey(userId: string, saltB64: string, passphrase?: string): Promise<CryptoKey> {
+  const secret = passphrase && passphrase.trim() ? `queuer:${userId}:${passphrase.trim()}` : `queuer:${userId}`;
+  return deriveKey(secret, saltB64);
+}
+
+/**
+ * Encrypts sensitive fields (holder name, account number, payload) of a Card for safe cloud storage.
+ * In Firestore, holder and number are stored empty, and sensitive data only exists in holderEnc, numberEnc, payloadEnc.
+ */
+export async function encryptCardForStorage(card: any, key: CryptoKey): Promise<any> {
+  const holderEnc = card.holder ? await encryptText(card.holder, key) : card.holderEnc;
+  const numberEnc = card.number ? await encryptText(card.number, key) : card.numberEnc;
+  const payloadEnc = card.payload ? await encryptText(card.payload, key) : card.payloadEnc;
+
+  return {
+    ...card,
+    holder: '', // Plaintext name removed before cloud storage
+    holderEnc: holderEnc || undefined,
+    number: '', // Plaintext number removed before cloud storage
+    numberEnc: numberEnc || undefined,
+    payload: null, // Plaintext payload removed before cloud storage
+    payloadEnc: payloadEnc || null,
+  };
+}
+
+/**
+ * Decrypts encrypted fields (holderEnc, numberEnc, payloadEnc) of a Card for local UI display.
+ */
+export async function decryptCardFromStorage(card: any, key: CryptoKey): Promise<any> {
+  let holder = card.holder || '';
+  let number = card.number || '';
+  let payload = card.payload || null;
+
+  if (card.holderEnc) {
+    try {
+      holder = await decryptText(card.holderEnc, key);
+    } catch {
+      // Fallback
+    }
+  }
+
+  if (card.numberEnc) {
+    try {
+      number = await decryptText(card.numberEnc, key);
+    } catch {
+      // Fallback
+    }
+  }
+
+  if (card.payloadEnc) {
+    try {
+      payload = await decryptText(card.payloadEnc, key);
+    } catch {
+      // Fallback
+    }
+  }
+
+  return {
+    ...card,
+    holder,
+    number,
+    payload,
+  };
+}

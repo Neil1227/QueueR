@@ -22,6 +22,7 @@ export const CardSchema = z.object({
   provider: z.string().min(1, 'Provider name is required').max(50),
   color: z.string().regex(/^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$/, 'Valid hex color is required'),
   holder: z.string().max(100).default(''),
+  holderEnc: z.string().optional(),
   number: z.string().max(100).default(''),
   numberEnc: z.string().optional(),
   label: z.string().max(50).default(''),
