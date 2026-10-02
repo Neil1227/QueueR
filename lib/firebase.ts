@@ -4,6 +4,9 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
+  setPersistence,
+  browserLocalPersistence,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInAnonymously,
@@ -57,6 +60,9 @@ if (typeof window !== 'undefined' && isFirebaseConfigured) {
 
     try {
       auth = getAuth(app);
+      setPersistence(auth, browserLocalPersistence).catch((e) => {
+        console.warn('Firebase persistence warning:', e);
+      });
     } catch (authErr) {
       console.warn('Auth initialization fallback:', authErr);
       auth = null;
@@ -96,17 +102,74 @@ if (typeof window !== 'undefined' && isFirebaseConfigured) {
 
 export { app, auth, db };
 
-export async function signInWithGoogle(): Promise<User | null> {
+export function isMobileBrowser(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  return (
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua) ||
+    (window.navigator.maxTouchPoints > 1 && window.innerWidth < 800)
+  );
+}
+
+export function getCurrentDomain(): string {
+  if (typeof window === 'undefined') return 'localhost';
+  return window.location.hostname;
+}
+
+function handleAuthDomainError(err: any): Error {
+  if (err?.code === 'auth/unauthorized-domain') {
+    const domain = getCurrentDomain();
+    return new Error(
+      `Unauthorized Domain: "${domain}" is not added in your Firebase Console. Go to Firebase Console > Authentication > Settings > Authorized domains > Add "${domain}".`
+    );
+  }
+  return err;
+}
+
+export async function checkRedirectResult(): Promise<User | null> {
+  if (!auth) return null;
+  try {
+    const result = await getRedirectResult(auth);
+    return result?.user ?? null;
+  } catch (err: any) {
+    throw handleAuthDomainError(err);
+  }
+}
+
+export async function signInWithGoogle(forceRedirect = false): Promise<User | null> {
   if (!auth) throw new Error('Firebase Auth is not configured');
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
+
+  const shouldRedirect = forceRedirect || isMobileBrowser();
+
+  if (shouldRedirect) {
+    try {
+      await signInWithRedirect(auth, provider);
+      return null;
+    } catch (err: any) {
+      throw handleAuthDomainError(err);
+    }
+  }
+
   try {
     const result = await signInWithPopup(auth, provider);
     return result.user;
   } catch (err: any) {
-    if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/popup-closed-by-user') {
-      await signInWithRedirect(auth, provider);
-      return null;
+    const processed = handleAuthDomainError(err);
+    if (processed !== err) throw processed;
+
+    if (
+      err?.code === 'auth/popup-blocked' ||
+      err?.code === 'auth/popup-closed-by-user' ||
+      err?.code === 'auth/cancelled-popup-request'
+    ) {
+      try {
+        await signInWithRedirect(auth, provider);
+        return null;
+      } catch (redirectErr: any) {
+        throw handleAuthDomainError(redirectErr);
+      }
     }
     throw err;
   }
@@ -114,25 +177,41 @@ export async function signInWithGoogle(): Promise<User | null> {
 
 export async function signInWithEmail(email: string, pass: string): Promise<User> {
   if (!auth) throw new Error('Firebase Auth is not configured');
-  const res = await signInWithEmailAndPassword(auth, email, pass);
-  return res.user;
+  try {
+    const res = await signInWithEmailAndPassword(auth, email, pass);
+    return res.user;
+  } catch (err: any) {
+    throw handleAuthDomainError(err);
+  }
 }
 
 export async function signUpWithEmail(email: string, pass: string): Promise<User> {
   if (!auth) throw new Error('Firebase Auth is not configured');
-  const res = await createUserWithEmailAndPassword(auth, email, pass);
-  return res.user;
+  try {
+    const res = await createUserWithEmailAndPassword(auth, email, pass);
+    return res.user;
+  } catch (err: any) {
+    throw handleAuthDomainError(err);
+  }
 }
 
 export async function signInGuest(): Promise<User> {
   if (!auth) throw new Error('Firebase Auth is not configured');
-  const res = await signInAnonymously(auth);
-  return res.user;
+  try {
+    const res = await signInAnonymously(auth);
+    return res.user;
+  } catch (err: any) {
+    throw handleAuthDomainError(err);
+  }
 }
 
 export async function sendResetPasswordEmail(email: string): Promise<void> {
   if (!auth) throw new Error('Firebase Auth is not configured');
-  await sendPasswordResetEmail(auth, email);
+  try {
+    await sendPasswordResetEmail(auth, email);
+  } catch (err: any) {
+    throw handleAuthDomainError(err);
+  }
 }
 
 export async function logOut(): Promise<void> {

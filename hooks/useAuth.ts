@@ -10,6 +10,8 @@ import {
   signUpWithEmail,
   signInGuest,
   sendResetPasswordEmail,
+  checkRedirectResult,
+  getCurrentDomain,
   logOut,
 } from '@/lib/firebase';
 
@@ -19,7 +21,8 @@ export interface AuthState {
   isGuest: boolean;
   isConfigured: boolean;
   error: string | null;
-  signInWithGoogle: () => Promise<User | null>;
+  unauthorizedDomain: string | null;
+  signInWithGoogle: (forceRedirect?: boolean) => Promise<User | null>;
   signInWithEmail: (email: string, pass: string) => Promise<User>;
   signUpWithEmail: (email: string, pass: string) => Promise<User>;
   signInGuest: () => Promise<User | null>;
@@ -31,6 +34,7 @@ export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
 
   useEffect(() => {
     if (!auth) {
@@ -51,15 +55,35 @@ export function useAuth(): AuthState {
       return;
     }
 
+    // Process potential redirect credential from mobile OAuth redirect
+    checkRedirectResult()
+      .then((redirectUser) => {
+        if (redirectUser) {
+          setUser(redirectUser);
+        }
+      })
+      .catch((err: any) => {
+        console.warn('OAuth redirect check notice:', err);
+        const msg = err?.message || 'Authentication redirect failed';
+        setError(msg);
+        if (msg.includes('Unauthorized Domain') || err?.code === 'auth/unauthorized-domain') {
+          setUnauthorizedDomain(getCurrentDomain());
+        }
+      });
+
     const unsubscribe = onAuthStateChanged(
       auth,
       (currentUser) => {
         setUser(currentUser);
         setLoading(false);
       },
-      (err) => {
+      (err: any) => {
         console.error('Auth state change error:', err);
-        setError(err.message);
+        const msg = err?.message || 'Authentication error';
+        setError(msg);
+        if (err?.code === 'auth/unauthorized-domain' || msg.includes('Unauthorized Domain')) {
+          setUnauthorizedDomain(getCurrentDomain());
+        }
         setLoading(false);
       }
     );
@@ -67,8 +91,9 @@ export function useAuth(): AuthState {
     return () => unsubscribe();
   }, []);
 
-  const handleSignInGoogle = async () => {
+  const handleSignInGoogle = async (forceRedirect?: boolean) => {
     setError(null);
+    setUnauthorizedDomain(null);
     if (!auth) {
       const simulatedGoogleUser = {
         uid: 'google-user-' + Math.random().toString(36).substring(2, 9),
@@ -86,35 +111,50 @@ export function useAuth(): AuthState {
       return simulatedGoogleUser;
     }
     try {
-      return await signInWithGoogle();
+      return await signInWithGoogle(forceRedirect);
     } catch (err: any) {
-      setError(err?.message || 'Google sign-in failed');
+      const msg = err?.message || 'Google sign-in failed';
+      setError(msg);
+      if (msg.includes('Unauthorized Domain') || err?.code === 'auth/unauthorized-domain') {
+        setUnauthorizedDomain(getCurrentDomain());
+      }
       throw err;
     }
   };
 
   const handleSignInEmail = async (email: string, pass: string) => {
     setError(null);
+    setUnauthorizedDomain(null);
     try {
       return await signInWithEmail(email, pass);
     } catch (err: any) {
-      setError(err?.message || 'Email sign-in failed');
+      const msg = err?.message || 'Email sign-in failed';
+      setError(msg);
+      if (msg.includes('Unauthorized Domain') || err?.code === 'auth/unauthorized-domain') {
+        setUnauthorizedDomain(getCurrentDomain());
+      }
       throw err;
     }
   };
 
   const handleSignUpEmail = async (email: string, pass: string) => {
     setError(null);
+    setUnauthorizedDomain(null);
     try {
       return await signUpWithEmail(email, pass);
     } catch (err: any) {
-      setError(err?.message || 'Sign up failed');
+      const msg = err?.message || 'Sign up failed';
+      setError(msg);
+      if (msg.includes('Unauthorized Domain') || err?.code === 'auth/unauthorized-domain') {
+        setUnauthorizedDomain(getCurrentDomain());
+      }
       throw err;
     }
   };
 
   const handleSignInGuest = async () => {
     setError(null);
+    setUnauthorizedDomain(null);
     if (!auth) {
       const guestUid = 'local-guest-' + Math.random().toString(36).substring(2, 9);
       if (typeof window !== 'undefined') {
@@ -128,27 +168,36 @@ export function useAuth(): AuthState {
     try {
       return await signInGuest();
     } catch (err: any) {
-      setError(err?.message || 'Guest sign-in failed');
+      const msg = err?.message || 'Guest sign-in failed';
+      setError(msg);
+      if (msg.includes('Unauthorized Domain') || err?.code === 'auth/unauthorized-domain') {
+        setUnauthorizedDomain(getCurrentDomain());
+      }
       throw err;
     }
   };
 
   const handleSendPasswordReset = async (email: string) => {
     setError(null);
+    setUnauthorizedDomain(null);
     if (!auth) {
-      // Offline fallback simulation
       return;
     }
     try {
       await sendResetPasswordEmail(email);
     } catch (err: any) {
-      setError(err?.message || 'Failed to send password reset email');
+      const msg = err?.message || 'Failed to send password reset email';
+      setError(msg);
+      if (msg.includes('Unauthorized Domain') || err?.code === 'auth/unauthorized-domain') {
+        setUnauthorizedDomain(getCurrentDomain());
+      }
       throw err;
     }
   };
 
   const handleSignOut = async () => {
     setError(null);
+    setUnauthorizedDomain(null);
     if (!auth) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('qr_wallet_local_guest_uid');
@@ -166,6 +215,7 @@ export function useAuth(): AuthState {
     isGuest: Boolean(user?.isAnonymous),
     isConfigured: isFirebaseConfigured,
     error,
+    unauthorizedDomain,
     signInWithGoogle: handleSignInGoogle,
     signInWithEmail: handleSignInEmail,
     signUpWithEmail: handleSignUpEmail,

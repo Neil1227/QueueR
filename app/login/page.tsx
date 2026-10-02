@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,6 +21,10 @@ import {
   KeyRound,
   LogOut,
   Sparkles,
+  AlertTriangle,
+  Copy,
+  ExternalLink,
+  RefreshCw,
 } from 'lucide-react';
 
 function LoginContent() {
@@ -32,6 +36,8 @@ function LoginContent() {
     user,
     isGuest,
     loading: authStateLoading,
+    error: authHookError,
+    unauthorizedDomain,
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,
@@ -47,9 +53,16 @@ function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [e2eePassphrase, setE2eePassphrase] = useState('');
   const [showE2EEInput, setShowE2EEInput] = useState(false);
-  const [loadingAction, setLoadingAction] = useState<'google' | 'email' | 'guest' | 'unlock' | 'reset' | null>(null);
+  const [loadingAction, setLoadingAction] = useState<'google' | 'google-redirect' | 'email' | 'guest' | 'unlock' | 'reset' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showPinSetup, setShowPinSetup] = useState(false);
+
+  // If returning from Google redirect and user is authenticated but doesn't have a PIN configured
+  useEffect(() => {
+    if (user && !isGuest && !hasConfiguredPin() && !showPinSetup) {
+      setShowPinSetup(true);
+    }
+  }, [user, isGuest, showPinSetup]);
 
   const activateSession = (passphrase?: string) => {
     if (typeof window !== 'undefined') {
@@ -91,13 +104,15 @@ function LoginContent() {
     router.replace(redirectPath);
   };
 
-  const handleGoogleLogin = async () => {
-    setLoadingAction('google');
+  const handleGoogleLogin = async (forceRedirect = false) => {
+    setLoadingAction(forceRedirect ? 'google-redirect' : 'google');
     setErrorMessage(null);
     try {
-      const loggedUser = await signInWithGoogle();
-      showToast('Signed in with Google');
-      handlePostAuthSuccess(loggedUser?.email);
+      const loggedUser = await signInWithGoogle(forceRedirect);
+      if (loggedUser) {
+        showToast('Signed in with Google');
+        handlePostAuthSuccess(loggedUser.email);
+      }
     } catch (err: any) {
       const msg = err?.message || 'Google sign-in failed. Please try again.';
       setErrorMessage(msg);
@@ -181,6 +196,8 @@ function LoginContent() {
     }
   };
 
+  const activeDomain = unauthorizedDomain || (typeof window !== 'undefined' ? window.location.hostname : '');
+
   return (
     <div className="min-h-screen flex flex-col justify-between max-w-md mx-auto px-5 py-6">
       {/* Top Header */}
@@ -220,7 +237,53 @@ function LoginContent() {
 
         {/* Form or Account Unlock Container */}
         <div className="bg-surface rounded-3xl p-5 shadow-sm border border-line/40 space-y-4">
-          {errorMessage && (
+          {/* Diagnostic Card for Firebase Unauthorized Domain */}
+          {activeDomain && (unauthorizedDomain || (errorMessage && errorMessage.includes('Unauthorized Domain'))) && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-text space-y-2.5 animate-fade-in text-left">
+              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-xs">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Firebase Domain Authorization Required</span>
+              </div>
+              <p className="text-[11px] text-muted leading-relaxed">
+                Google OAuth blocks requests from domains not registered in your Firebase project authorized domains list.
+              </p>
+              <div className="flex items-center gap-2 p-2 bg-bg rounded-xl border border-line/40 text-xs font-mono">
+                <span className="flex-1 truncate select-all">{activeDomain}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      navigator.clipboard.writeText(activeDomain);
+                      showToast(`Copied "${activeDomain}" to clipboard`);
+                    }
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-accent text-white text-[11px] font-semibold flex items-center gap-1 hover:bg-accent/90 cursor-pointer shrink-0"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>Copy Domain</span>
+                </button>
+              </div>
+              <div className="text-[11px] text-muted space-y-1">
+                <p className="font-semibold text-text">3-Step Fix:</p>
+                <ol className="list-decimal list-inside space-y-0.5 text-[10.5px]">
+                  <li>Open Firebase Console &gt; Authentication &gt; Settings</li>
+                  <li>Click &quot;Authorized domains&quot; &gt; &quot;Add domain&quot;</li>
+                  <li>Paste <code className="bg-line/20 px-1 rounded">{activeDomain}</code> and Save</li>
+                </ol>
+              </div>
+              <a
+                href="https://console.firebase.google.com/project/queuer-58b67/authentication/settings"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline pt-1"
+              >
+                <span>Open Firebase Settings</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          )}
+
+          {errorMessage && !errorMessage.includes('Unauthorized Domain') && (
             <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-medium animate-fade-in">
               {errorMessage}
             </div>
@@ -309,18 +372,32 @@ function LoginContent() {
             /* Sign In / Sign Up Form */
             <div className="space-y-4">
               {/* Primary Google Login Button */}
-              <button
-                type="button"
-                id="google-login-button"
-                disabled={Boolean(loadingAction)}
-                onClick={handleGoogleLogin}
-                className="w-full py-3.5 px-4 rounded-2xl bg-surface hover:bg-surface/80 text-text font-bold text-sm flex items-center justify-center gap-3 shadow-sm border border-line/60 hover:border-accent active:scale-[0.98] transition-all cursor-pointer group disabled:opacity-50"
-              >
-                <GoogleIcon className="w-5 h-5 shrink-0 transition-transform group-hover:scale-110" />
-                <span>
-                  {loadingAction === 'google' ? 'Connecting to Google...' : 'Continue with Google'}
-                </span>
-              </button>
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  id="google-login-button"
+                  disabled={Boolean(loadingAction)}
+                  onClick={() => handleGoogleLogin(false)}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-surface hover:bg-surface/80 text-text font-bold text-sm flex items-center justify-center gap-3 shadow-sm border border-line/60 hover:border-accent active:scale-[0.98] transition-all cursor-pointer group disabled:opacity-50"
+                >
+                  <GoogleIcon className="w-5 h-5 shrink-0 transition-transform group-hover:scale-110" />
+                  <span>
+                    {loadingAction === 'google' || loadingAction === 'google-redirect'
+                      ? 'Redirecting to Google...'
+                      : 'Continue with Google'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleGoogleLogin(true)}
+                  disabled={Boolean(loadingAction)}
+                  className="w-full text-center text-[11px] text-muted hover:text-accent font-medium py-0.5 cursor-pointer flex items-center justify-center gap-1 opacity-70 hover:opacity-100 transition-opacity"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>On mobile or popup blocked? Click for Full Page Redirect</span>
+                </button>
+              </div>
 
               {/* Divider */}
               <div className="flex items-center gap-3 my-2">
