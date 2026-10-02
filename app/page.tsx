@@ -8,6 +8,7 @@ import { useCards } from '@/hooks/useCards';
 import { useAppLock } from '@/hooks/useAppLock';
 import { useTheme } from '@/hooks/useTheme';
 import { CardStack } from '@/components/CardStack';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReceiveSheet } from '@/components/ReceiveSheet';
 import { EditorSheet } from '@/components/EditorSheet';
 import { SettingsSheet } from '@/components/SettingsSheet';
@@ -214,15 +215,18 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen bg-bg">
-      {/* Main Card Stack */}
-      <CardStack
-        cards={cards}
-        numberFormat={numberFormat}
-        hideAddButton={isAnyOverlayActive}
-        onOpenCard={handleOpenReceive}
-        onAddCard={handleAddNewCard}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-      />
+      {/* Mobile Scroll-Down Pull To Refresh Container */}
+      <PullToRefresh disabled={isAnyOverlayActive}>
+        {/* Main Card Stack */}
+        <CardStack
+          cards={cards}
+          numberFormat={numberFormat}
+          hideAddButton={isAnyOverlayActive}
+          onOpenCard={handleOpenReceive}
+          onAddCard={handleAddNewCard}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
+      </PullToRefresh>
 
       {/* Receive View Sheet */}
       <ReceiveSheet
