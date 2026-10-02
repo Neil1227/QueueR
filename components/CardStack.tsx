@@ -5,10 +5,12 @@ import { Card as CardType, CardCategory, CARD_CATEGORIES } from '@/lib/schema';
 import { bringToFront, PreviewNumberFormat } from '@/lib/cards';
 import { Card } from './Card';
 import { CategoryIcon } from './CategoryIcon';
+import { CardStackSkeleton } from './CardStackSkeleton';
 import { Settings, Plus, CreditCard, Sparkles, FolderPlus } from 'lucide-react';
 
 interface CardStackProps {
   cards: CardType[];
+  loading?: boolean;
   numberFormat?: PreviewNumberFormat;
   hideAddButton?: boolean;
   onOpenCard: (card: CardType) => void;
@@ -18,6 +20,7 @@ interface CardStackProps {
 
 export function CardStack({
   cards,
+  loading = false,
   numberFormat = 'last4',
   hideAddButton = false,
   onOpenCard,
@@ -26,6 +29,10 @@ export function CardStack({
 }: CardStackProps) {
   const [selectedCategory, setSelectedCategory] = useState<CardCategory | 'all'>('all');
   const [announcement, setAnnouncement] = useState<string>('');
+
+  if (loading && cards.length === 0) {
+    return <CardStackSkeleton />;
+  }
 
   // Calculate card counts per category
   const categoryCounts = useMemo(() => {

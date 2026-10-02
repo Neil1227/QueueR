@@ -8,6 +8,7 @@ import { useCards } from '@/hooks/useCards';
 import { useAppLock } from '@/hooks/useAppLock';
 import { useTheme } from '@/hooks/useTheme';
 import { CardStack } from '@/components/CardStack';
+import { CardStackSkeleton } from '@/components/CardStackSkeleton';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReceiveSheet } from '@/components/ReceiveSheet';
 import { EditorSheet } from '@/components/EditorSheet';
@@ -107,7 +108,7 @@ export default function HomePage() {
 
       if (!isStackParam) {
         // First try synchronous local storage cached default
-        const cachedDef = getCachedDefaultCard();
+        const cachedDef = getCachedDefaultCard(user?.uid);
         const targetCard = defaultCard || cachedDef;
 
         if (targetCard && !receiveCard) {
@@ -119,7 +120,7 @@ export default function HomePage() {
         quickAccessHandledRef.current = true;
       }
     }
-  }, [defaultCard, receiveCard, recordUse, isLocked, hasPin]);
+  }, [defaultCard, receiveCard, recordUse, isLocked, hasPin, user?.uid]);
 
   const handleUnlockPin = async (pin: string) => {
     const res = await unlockWithPin(pin);
@@ -206,11 +207,7 @@ export default function HomePage() {
   );
 
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-bg flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-      </div>
-    );
+    return <CardStackSkeleton />;
   }
 
   return (
@@ -220,6 +217,7 @@ export default function HomePage() {
         {/* Main Card Stack */}
         <CardStack
           cards={cards}
+          loading={cardsLoading}
           numberFormat={numberFormat}
           hideAddButton={isAnyOverlayActive}
           onOpenCard={handleOpenReceive}

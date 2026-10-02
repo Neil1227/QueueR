@@ -180,4 +180,33 @@ describe('Cards utilities', () => {
       expect(bringToFront([], 'A')).toEqual([]);
     });
   });
+
+  describe('User-isolated local cache', () => {
+    const { getCachedCards, setCachedCards, clearCachedCards } = require('../lib/cards');
+
+    it('isolates cache per user ID and prevents leaking across users', () => {
+      const userCards: Card[] = [
+        {
+          id: 'card-u1',
+          provider: 'GCash',
+          color: '#007DFE',
+          holder: 'User 1',
+          number: '0917 111 2222',
+          isDefault: true,
+          useCount: 0,
+          lastUsedAt: 0,
+          createdAt: 0,
+          updatedAt: 0,
+          v: 1,
+        },
+      ];
+
+      setCachedCards(userCards, 'user_abc_123');
+      expect(getCachedCards('user_abc_123')).toHaveLength(1);
+      expect(getCachedCards('local-guest-999')).toHaveLength(0);
+
+      clearCachedCards('user_abc_123');
+      expect(getCachedCards('user_abc_123')).toHaveLength(0);
+    });
+  });
 });

@@ -64,17 +64,20 @@ export function useCards(userId?: string | null) {
 
   // Subscribe to cards from Firestore & load local cache
   useEffect(() => {
-    const cached = getCachedCards();
-    if (cached.length > 0) {
-      setCards(sortCards(cached));
-    }
-
     if (!userId) {
+      setCards([]);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    const cached = getCachedCards(userId);
+    if (cached.length > 0) {
+      setCards(sortCards(cached));
+      setLoading(false);
+    } else {
+      setCards([]);
+      setLoading(true);
+    }
 
     const unsubscribe = subscribeToUserCards(
       userId,
@@ -96,7 +99,7 @@ export function useCards(userId?: string | null) {
 
         const sorted = sortCards(processedCards);
         setCards(sorted);
-        setCachedCards(sorted);
+        setCachedCards(sorted, userId);
         setLoading(false);
       },
       () => {
@@ -215,7 +218,7 @@ export function useCards(userId?: string | null) {
       ];
 
       setCards(sortCards(updatedList));
-      setCachedCards(updatedList);
+      setCachedCards(updatedList, userId);
 
       if (userId) {
         // Automatically encrypt before saving to Firestore
@@ -232,7 +235,7 @@ export function useCards(userId?: string | null) {
     async (cardId: string) => {
       const updated = cards.filter((c) => c.id !== cardId);
       setCards(sortCards(updated));
-      setCachedCards(updated);
+      setCachedCards(updated, userId);
 
       if (userId) {
         await deleteUserCard(userId, cardId);
@@ -252,7 +255,7 @@ export function useCards(userId?: string | null) {
         c.id === cardId ? { ...c, useCount: (c.useCount || 0) + 1, lastUsedAt: now } : c
       );
       setCards(sortCards(updated));
-      setCachedCards(updated);
+      setCachedCards(updated, userId);
 
       if (userId) {
         await recordCardUse(userId, cardId);
@@ -276,7 +279,7 @@ export function useCards(userId?: string | null) {
 
       const sorted = sortCards(targetCards);
       setCards(sorted);
-      setCachedCards(sorted);
+      setCachedCards(sorted, userId);
 
       if (userId) {
         const activeKey = e2eeKey || (userMeta?.salt ? await deriveUserKey(userId, userMeta.salt) : null);

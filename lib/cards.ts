@@ -164,47 +164,75 @@ export function bringToFront<T extends { id: string }>(deck: T[], id: string): T
 export const LOCAL_CACHE_DEFAULT_KEY = 'qr_wallet_default_cache_v1';
 export const LOCAL_CACHE_ALL_KEY = 'qr_wallet_cards_cache_v1';
 
-export function getCachedDefaultCard(): Card | null {
+export function getCachedDefaultCard(userId?: string | null): Card | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(LOCAL_CACHE_DEFAULT_KEY);
-    return raw ? (JSON.parse(raw) as Card) : null;
+    const key = userId ? `${LOCAL_CACHE_DEFAULT_KEY}_${userId}` : LOCAL_CACHE_DEFAULT_KEY;
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw) as Card;
+    if (!userId) {
+      const fallback = localStorage.getItem(LOCAL_CACHE_DEFAULT_KEY);
+      return fallback ? (JSON.parse(fallback) as Card) : null;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
-export function setCachedDefaultCard(card: Card | null): void {
+export function setCachedDefaultCard(card: Card | null, userId?: string | null): void {
   if (typeof window === 'undefined') return;
   try {
+    const key = userId ? `${LOCAL_CACHE_DEFAULT_KEY}_${userId}` : LOCAL_CACHE_DEFAULT_KEY;
     if (card) {
-      localStorage.setItem(LOCAL_CACHE_DEFAULT_KEY, JSON.stringify(card));
+      localStorage.setItem(key, JSON.stringify(card));
     } else {
-      localStorage.removeItem(LOCAL_CACHE_DEFAULT_KEY);
+      localStorage.removeItem(key);
     }
   } catch {
     // Ignore storage quota errors
   }
 }
 
-export function getCachedCards(): Card[] {
+export function getCachedCards(userId?: string | null): Card[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(LOCAL_CACHE_ALL_KEY);
-    return raw ? (JSON.parse(raw) as Card[]) : [];
+    const key = userId ? `${LOCAL_CACHE_ALL_KEY}_${userId}` : LOCAL_CACHE_ALL_KEY;
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw) as Card[];
+    if (!userId) {
+      const fallback = localStorage.getItem(LOCAL_CACHE_ALL_KEY);
+      return fallback ? (JSON.parse(fallback) as Card[]) : [];
+    }
+    return [];
   } catch {
     return [];
   }
 }
 
-export function setCachedCards(cards: Card[]): void {
+export function setCachedCards(cards: Card[], userId?: string | null): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(LOCAL_CACHE_ALL_KEY, JSON.stringify(cards));
+    const key = userId ? `${LOCAL_CACHE_ALL_KEY}_${userId}` : LOCAL_CACHE_ALL_KEY;
+    localStorage.setItem(key, JSON.stringify(cards));
     const def = cards.find((c) => c.isDefault) || null;
-    setCachedDefaultCard(def);
+    setCachedDefaultCard(def, userId);
   } catch {
     // Ignore storage quota errors
+  }
+}
+
+export function clearCachedCards(userId?: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (userId) {
+      localStorage.removeItem(`${LOCAL_CACHE_ALL_KEY}_${userId}`);
+      localStorage.removeItem(`${LOCAL_CACHE_DEFAULT_KEY}_${userId}`);
+    }
+    localStorage.removeItem(LOCAL_CACHE_ALL_KEY);
+    localStorage.removeItem(LOCAL_CACHE_DEFAULT_KEY);
+  } catch {
+    // Ignore storage errors
   }
 }
 
