@@ -5,7 +5,6 @@ import { Card as CardType, CardCategory, CARD_CATEGORIES } from '@/lib/schema';
 import { bringToFront, PreviewNumberFormat } from '@/lib/cards';
 import { Card } from './Card';
 import { CategoryIcon } from './CategoryIcon';
-import { CardStackSkeleton } from './CardStackSkeleton';
 import { Settings, Plus, CreditCard, Sparkles, FolderPlus } from 'lucide-react';
 
 interface CardStackProps {

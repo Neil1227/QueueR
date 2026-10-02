@@ -18,24 +18,7 @@ import {
 } from '@/lib/cards';
 import { deriveKey, deriveUserKey, encryptCardForStorage, decryptCardFromStorage, generateSalt } from '@/lib/crypto';
 
-const CARD_LOAD_TIMEOUT_MS = 1200;
-const METADATA_TIMEOUT_MS = 1200;
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Timed out')), timeoutMs);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        clearTimeout(timer);
-        reject(error);
-      }
-    );
-  });
-}
+const CARD_LOAD_TIMEOUT_MS = 2500;
 
 export function useCards(userId?: string | null) {
   const [cards, setCards] = useState<Card[]>([]);
@@ -54,12 +37,12 @@ export function useCards(userId?: string | null) {
     let isMounted = true;
     (async () => {
       try {
-        let meta = await withTimeout(getUserMeta(userId), METADATA_TIMEOUT_MS);
+        let meta = await getUserMeta(userId);
         let salt = meta?.salt;
         if (!salt) {
           salt = generateSalt();
           meta = { e2eeEnabled: true, salt, updatedAt: Date.now() };
-          await withTimeout(saveUserMeta(userId, meta), METADATA_TIMEOUT_MS);
+          await saveUserMeta(userId, meta);
         }
         if (isMounted) setUserMeta(meta);
 
@@ -72,7 +55,7 @@ export function useCards(userId?: string | null) {
           setE2eeKey(key);
         }
       } catch (err) {
-        console.error('Failed to derive user encryption key:', err);
+        console.warn('User encryption key notice:', err);
       }
     })();
 
