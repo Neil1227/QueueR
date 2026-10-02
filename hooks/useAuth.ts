@@ -14,6 +14,8 @@ import {
   getCurrentDomain,
   logOut,
 } from '@/lib/firebase';
+import { removePin, removePasskey } from '@/lib/app-lock';
+import { clearCachedCards } from '@/lib/cards';
 
 export interface AuthState {
   user: User | null;
@@ -31,26 +33,29 @@ export interface AuthState {
 }
 
 export function useAuth(): AuthState {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      const localGuestId = localStorage.getItem('qr_wallet_local_guest_uid');
+      if (localGuestId) {
+        return { uid: localGuestId, isAnonymous: true, email: null, displayName: 'Local Guest' } as unknown as User;
+      }
+      const localGoogleUser = localStorage.getItem('qr_wallet_local_google_user');
+      if (localGoogleUser) {
+        try {
+          return JSON.parse(localGoogleUser);
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
 
   useEffect(() => {
     if (!auth) {
-      // Local fallback mode if Firebase is not configured or in SSR
-      const localGoogleUser = typeof window !== 'undefined' ? localStorage.getItem('qr_wallet_local_google_user') : null;
-      const localGuestId = typeof window !== 'undefined' ? localStorage.getItem('qr_wallet_local_guest_uid') : null;
-      
-      if (localGoogleUser) {
-        try {
-          setUser(JSON.parse(localGoogleUser));
-        } catch {
-          // ignore parsing error
-        }
-      } else if (localGuestId) {
-        setUser({ uid: localGuestId, isAnonymous: true, email: null, displayName: 'Local Guest' } as unknown as User);
-      }
       setLoading(false);
       return;
     }
@@ -87,7 +92,16 @@ export function useAuth(): AuthState {
               if (localGuestId) {
                 setUser({ uid: localGuestId, isAnonymous: true, email: null, displayName: 'Local Guest' } as unknown as User);
               } else {
-                setUser(null);
+                const localGoogleUser = typeof window !== 'undefined' ? localStorage.getItem('qr_wallet_local_google_user') : null;
+                if (localGoogleUser) {
+                  try {
+                    setUser(JSON.parse(localGoogleUser));
+                  } catch {
+                    setUser(null);
+                  }
+                } else {
+                  setUser(null);
+                }
               }
             }
             setLoading(false);
@@ -243,7 +257,10 @@ export function useAuth(): AuthState {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('qr_wallet_local_guest_uid');
       localStorage.removeItem('qr_wallet_local_google_user');
-      sessionStorage.removeItem('qr_wallet_session_active');
+      sessionStorage.clear();
+      removePin();
+      removePasskey();
+      clearCachedCards();
     }
     if (auth) {
       try {
@@ -253,6 +270,9 @@ export function useAuth(): AuthState {
       }
     }
     setUser(null);
+    if (typeof window !== 'undefined') {
+      window.location.replace('/login');
+    }
   };
 
   return {

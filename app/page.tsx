@@ -206,7 +206,7 @@ export default function HomePage() {
     receiveCard || isEditorOpen || isSettingsOpen || isLocked || !hasPin || isForgotPinOpen || isResetPinOpen
   );
 
-  if (authLoading) {
+  if (authLoading || (!user && !isGuest)) {
     return <CardStackSkeleton />;
   }
 

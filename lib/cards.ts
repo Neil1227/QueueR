@@ -231,6 +231,16 @@ export function clearCachedCards(userId?: string | null): void {
     }
     localStorage.removeItem(LOCAL_CACHE_ALL_KEY);
     localStorage.removeItem(LOCAL_CACHE_DEFAULT_KEY);
+
+    // Clear all user-scoped or legacy card cache keys in localStorage
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('qr_wallet_cards_cache') || k.startsWith('qr_wallet_default_cache') || k.startsWith('qr_wallet_default_card_cache'))) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
   } catch {
     // Ignore storage errors
   }

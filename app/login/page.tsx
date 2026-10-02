@@ -59,6 +59,7 @@ function LoginContent() {
       if (!hasConfiguredPin()) {
         setShowPinSetup(true);
       } else {
+        activateSession();
         router.replace(redirectPath);
       }
     }
@@ -167,6 +168,14 @@ function LoginContent() {
   };
 
   const activeDomain = unauthorizedDomain || (typeof window !== 'undefined' ? window.location.hostname : '');
+
+  if (authStateLoading || ((user || isGuest) && !showPinSetup)) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col justify-between max-w-md mx-auto px-5 py-6">
