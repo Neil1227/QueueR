@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from './Toast';
 import { PreviewNumberFormat } from '@/lib/cards';
 import { Card } from '@/lib/schema';
-import { LockTimeoutOption } from '@/lib/app-lock';
+import { LockTimeoutOption, verifyPin } from '@/lib/app-lock';
 import {
   evaluatePassphraseStrength,
   createEncryptedBackup,
@@ -102,7 +102,14 @@ export function SettingsSheet({
 
   // App Lock PIN state
   const [newPin, setNewPin] = useState('');
+  const [confirmNewPin, setConfirmNewPin] = useState('');
   const [showPinInput, setShowPinInput] = useState(false);
+  const [showChangePin, setShowChangePin] = useState(false);
+  const [currentPinInput, setCurrentPinInput] = useState('');
+  const [changeNewPinInput, setChangeNewPinInput] = useState('');
+  const [confirmChangePinInput, setConfirmChangePinInput] = useState('');
+  const [pinFormError, setPinFormError] = useState<string | null>(null);
+  const [isPinSubmitting, setIsPinSubmitting] = useState(false);
 
   // Backup Export State
   const [exportPassphrase, setExportPassphrase] = useState('');
@@ -149,28 +156,94 @@ export function SettingsSheet({
     if (!passphrase) return;
     const ok = await onUnlockE2EE(passphrase);
     if (ok) {
-      showToast('E2EE unlocked & keys derived');
+      showToast('Vault security unlocked');
       setPassphrase('');
       setShowPassphraseInput(false);
     } else {
-      showToast('Could not unlock E2EE');
+      showToast('Could not unlock vault');
     }
   };
 
   const handleSavePin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPinFormError(null);
     if (newPin.length !== 4) {
-      showToast('PIN must be exactly 4 digits');
+      setPinFormError('PIN must be exactly 4 digits');
       return;
     }
-    await onUpdatePin(newPin);
-    setNewPin('');
-    setShowPinInput(false);
-    showToast('4-digit Security PIN saved');
+    if (confirmNewPin.length !== 4) {
+      setPinFormError('Please confirm your 4-digit PIN');
+      return;
+    }
+    if (newPin !== confirmNewPin) {
+      setPinFormError('PINs do not match. Please try again.');
+      return;
+    }
+
+    setIsPinSubmitting(true);
+    try {
+      await onUpdatePin(newPin);
+      setNewPin('');
+      setConfirmNewPin('');
+      setShowPinInput(false);
+      showToast('4-digit Security PIN saved');
+    } catch (err: any) {
+      setPinFormError(err?.message || 'Failed to save PIN');
+    } finally {
+      setIsPinSubmitting(false);
+    }
+  };
+
+  const handleChangePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPinFormError(null);
+    if (currentPinInput.length !== 4) {
+      setPinFormError('Please enter your 4-digit current PIN');
+      return;
+    }
+    if (changeNewPinInput.length !== 4) {
+      setPinFormError('New PIN must be exactly 4 digits');
+      return;
+    }
+    if (confirmChangePinInput.length !== 4) {
+      setPinFormError('Please confirm your new 4-digit PIN');
+      return;
+    }
+    if (changeNewPinInput !== confirmChangePinInput) {
+      setPinFormError('New PINs do not match. Please try again.');
+      return;
+    }
+
+    setIsPinSubmitting(true);
+    try {
+      const verifyRes = await verifyPin(currentPinInput);
+      if (!verifyRes.success) {
+        if (verifyRes.isLockedOut) {
+          setPinFormError(`Too many attempts. Locked out for ${verifyRes.remainingLockoutSeconds}s.`);
+        } else {
+          setPinFormError('Current PIN is incorrect');
+        }
+        setIsPinSubmitting(false);
+        return;
+      }
+
+      await onUpdatePin(changeNewPinInput);
+      setCurrentPinInput('');
+      setChangeNewPinInput('');
+      setConfirmChangePinInput('');
+      setShowChangePin(false);
+      showToast('Security PIN updated successfully');
+    } catch (err: any) {
+      setPinFormError(err?.message || 'Failed to change PIN');
+    } finally {
+      setIsPinSubmitting(false);
+    }
   };
 
   const handleRemovePin = async () => {
     await onUpdatePin(null);
+    setShowPinInput(false);
+    setShowChangePin(false);
     showToast('PIN removed');
   };
 
@@ -418,52 +491,196 @@ export function SettingsSheet({
               {/* PIN row */}
               <div className="flex justify-between items-center p-3 bg-bg rounded-xl">
                 <div>
-                  <span className="font-medium text-sm block">Passcode PIN (4-6 digits)</span>
+                  <span className="font-medium text-sm block">4-Digit Security PIN</span>
                   <span className="text-xs text-muted">
-                    {hasPin ? 'PIN is configured (PBKDF2 SHA-256)' : 'Not set'}
+                    {hasPin ? 'Protected & Active' : 'Not configured'}
                   </span>
                 </div>
                 {hasPin ? (
-                  <button
-                    type="button"
-                    onClick={handleRemovePin}
-                    className="text-xs font-semibold text-red-500 hover:underline cursor-pointer"
-                  >
-                    Remove
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowChangePin(!showChangePin);
+                        setShowPinInput(false);
+                        setPinFormError(null);
+                        setCurrentPinInput('');
+                        setChangeNewPinInput('');
+                        setConfirmChangePinInput('');
+                      }}
+                      className="text-xs font-semibold text-accent hover:underline cursor-pointer"
+                    >
+                      {showChangePin ? 'Cancel' : 'Change PIN'}
+                    </button>
+                    <span className="text-muted/40">•</span>
+                    <button
+                      type="button"
+                      onClick={handleRemovePin}
+                      className="text-xs font-semibold text-red-500 hover:underline cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setShowPinInput(!showPinInput)}
+                    onClick={() => {
+                      setShowPinInput(!showPinInput);
+                      setShowChangePin(false);
+                      setPinFormError(null);
+                      setNewPin('');
+                      setConfirmNewPin('');
+                    }}
                     className="text-xs font-semibold text-accent cursor-pointer"
                   >
-                    Set PIN
+                    {showPinInput ? 'Cancel' : 'Set PIN'}
                   </button>
                 )}
               </div>
 
-              {showPinInput && (
-                <form onSubmit={handleSavePin} className="p-3 bg-bg rounded-xl space-y-2">
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={4}
-                    placeholder="Enter 4-digit PIN"
-                    value={newPin}
-                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                    className="w-full bg-surface border border-line/50 rounded-xl px-3.5 py-2 text-sm text-text font-mono text-center tracking-widest outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
-                  />
-                  <div className="flex gap-2">
+              {/* Set PIN Form */}
+              {showPinInput && !hasPin && (
+                <form onSubmit={handleSavePin} className="p-3.5 bg-bg rounded-xl space-y-3 border border-line/40 animate-fade-in">
+                  <div className="text-xs font-semibold text-text">Set 4-Digit Security PIN</div>
+                  {pinFormError && (
+                    <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs">
+                      {pinFormError}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-[11px] font-medium text-muted block mb-1">Enter 4-Digit PIN</label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={4}
+                        placeholder="••••"
+                        value={newPin}
+                        onChange={(e) => {
+                          setPinFormError(null);
+                          setNewPin(e.target.value.replace(/\D/g, ''));
+                        }}
+                        className="w-full bg-surface border border-line/50 rounded-xl px-3.5 py-2 text-sm text-text font-mono text-center tracking-widest outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-medium text-muted block mb-1">Confirm 4-Digit PIN</label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={4}
+                        placeholder="••••"
+                        value={confirmNewPin}
+                        onChange={(e) => {
+                          setPinFormError(null);
+                          setConfirmNewPin(e.target.value.replace(/\D/g, ''));
+                        }}
+                        className="w-full bg-surface border border-line/50 rounded-xl px-3.5 py-2 text-sm text-text font-mono text-center tracking-widest outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
                     <button
                       type="submit"
-                      className="flex-1 py-2 rounded-xl bg-accent text-white font-semibold text-xs shadow-sm cursor-pointer"
+                      disabled={isPinSubmitting || newPin.length !== 4 || confirmNewPin.length !== 4}
+                      className="flex-1 py-2 rounded-xl bg-accent text-white font-semibold text-xs shadow-sm cursor-pointer disabled:opacity-50"
                     >
-                      Save PIN
+                      {isPinSubmitting ? 'Saving...' : 'Save PIN'}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setShowPinInput(false)}
+                      onClick={() => {
+                        setShowPinInput(false);
+                        setPinFormError(null);
+                      }}
+                      className="px-3 py-2 text-xs text-muted cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Change PIN Form */}
+              {showChangePin && hasPin && (
+                <form onSubmit={handleChangePin} className="p-3.5 bg-bg rounded-xl space-y-3 border border-line/40 animate-fade-in">
+                  <div className="text-xs font-semibold text-text">Change 4-Digit Security PIN</div>
+                  {pinFormError && (
+                    <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs">
+                      {pinFormError}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-[11px] font-medium text-muted block mb-1">Current PIN</label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={4}
+                        placeholder="Current 4-digit PIN"
+                        value={currentPinInput}
+                        onChange={(e) => {
+                          setPinFormError(null);
+                          setCurrentPinInput(e.target.value.replace(/\D/g, ''));
+                        }}
+                        className="w-full bg-surface border border-line/50 rounded-xl px-3.5 py-2 text-sm text-text font-mono text-center tracking-widest outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-medium text-muted block mb-1">New 4-Digit PIN</label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={4}
+                        placeholder="New 4-digit PIN"
+                        value={changeNewPinInput}
+                        onChange={(e) => {
+                          setPinFormError(null);
+                          setChangeNewPinInput(e.target.value.replace(/\D/g, ''));
+                        }}
+                        className="w-full bg-surface border border-line/50 rounded-xl px-3.5 py-2 text-sm text-text font-mono text-center tracking-widest outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-medium text-muted block mb-1">Confirm New 4-Digit PIN</label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={4}
+                        placeholder="Confirm new PIN"
+                        value={confirmChangePinInput}
+                        onChange={(e) => {
+                          setPinFormError(null);
+                          setConfirmChangePinInput(e.target.value.replace(/\D/g, ''));
+                        }}
+                        className="w-full bg-surface border border-line/50 rounded-xl px-3.5 py-2 text-sm text-text font-mono text-center tracking-widest outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="submit"
+                      disabled={
+                        isPinSubmitting ||
+                        currentPinInput.length !== 4 ||
+                        changeNewPinInput.length !== 4 ||
+                        confirmChangePinInput.length !== 4
+                      }
+                      className="flex-1 py-2 rounded-xl bg-accent text-white font-semibold text-xs shadow-sm cursor-pointer disabled:opacity-50"
+                    >
+                      {isPinSubmitting ? 'Updating...' : 'Update PIN'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowChangePin(false);
+                        setPinFormError(null);
+                      }}
                       className="px-3 py-2 text-xs text-muted cursor-pointer"
                     >
                       Cancel
@@ -546,7 +763,7 @@ export function SettingsSheet({
 
               {/* Forgot PIN Note */}
               <p className="text-[11px] text-muted leading-relaxed pt-1">
-                Forgot PIN? Re-authenticating with your Firebase account resets the local PIN without compromising security.
+                Forgot PIN? Re-authenticating with your account resets the local PIN without compromising security.
               </p>
             </div>
           </section>
@@ -660,7 +877,7 @@ export function SettingsSheet({
                     disabled={isExporting || exportPassphrase.length < 10}
                     className="w-full py-2.5 rounded-xl bg-accent text-white font-semibold text-xs shadow-sm hover:bg-accent/90 disabled:opacity-50 cursor-pointer"
                   >
-                    {isExporting ? 'Encrypting (PBKDF2 600k iter)...' : `Export ${cards.length} Cards`}
+                    {isExporting ? 'Encrypting backup...' : `Export ${cards.length} Cards`}
                   </button>
                 </form>
               )}
@@ -675,13 +892,13 @@ export function SettingsSheet({
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-semibold">End-to-End Encryption</h3>
-                  <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
-                    AUTO-ENCRYPT ACTIVE
+                  <h3 className="text-base font-semibold">Vault Protection</h3>
+                  <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 rounded-full">
+                    Protected
                   </span>
                 </div>
                 <p className="text-xs text-muted">
-                  All card names, account numbers, and QR codes are automatically AES-256 encrypted before cloud sync.
+                  All card names, account numbers, and QR codes are automatically encrypted before cloud sync.
                 </p>
               </div>
             </div>
@@ -691,13 +908,13 @@ export function SettingsSheet({
                 <form onSubmit={handleE2EESubmit} className="space-y-2">
                   <input
                     type="password"
-                    placeholder="Enter custom E2EE master passphrase"
+                    placeholder="Enter custom vault passphrase"
                     value={passphrase}
                     onChange={(e) => setPassphrase(e.target.value)}
                     className="w-full bg-bg border border-line/50 rounded-xl px-3.5 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"
                   />
                   <p className="text-[11px] text-muted leading-snug">
-                    Optional: Adding a custom passphrase adds an extra encryption layer on top of your per-user key.
+                    Optional: Adding a custom passphrase adds an extra security layer on top of your account protection.
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -705,7 +922,7 @@ export function SettingsSheet({
                       disabled={isDecrypting}
                       className="flex-1 py-2.5 rounded-xl bg-accent text-white font-semibold text-xs shadow-sm hover:bg-accent/90 cursor-pointer"
                     >
-                      {isDecrypting ? 'Deriving Key...' : 'Apply Custom Passphrase'}
+                      {isDecrypting ? 'Securing...' : 'Apply Custom Passphrase'}
                     </button>
                     <button
                       type="button"

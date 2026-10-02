@@ -231,7 +231,7 @@ export function subscribeToUserCards(
     onCards(initialCards);
   }
 
-  if (!db || !userId) {
+  if (!db || !userId || userId.startsWith('local-guest-')) {
     return () => {};
   }
 
@@ -286,7 +286,7 @@ export async function saveUserCard(
 ): Promise<void> {
   const validated = CardSchema.parse(cardData);
 
-  if (!db || !userId) {
+  if (!db || !userId || userId.startsWith('local-guest-')) {
     // Local offline storage fallback
     const current = getCachedCards();
     const filtered = current.filter((c) => c.id !== validated.id);
@@ -316,7 +316,7 @@ export async function saveUserCard(
  * Delete a card by ID.
  */
 export async function deleteUserCard(userId: string, cardId: string): Promise<void> {
-  if (!db || !userId) {
+  if (!db || !userId || userId.startsWith('local-guest-')) {
     const current = getCachedCards();
     const updated = current.filter((c) => c.id !== cardId);
     setCachedCards(updated);
@@ -332,7 +332,7 @@ export async function deleteUserCard(userId: string, cardId: string): Promise<vo
  */
 export async function recordCardUse(userId: string, cardId: string): Promise<void> {
   const now = Date.now();
-  if (!db || !userId) {
+  if (!db || !userId || userId.startsWith('local-guest-')) {
     const current = getCachedCards();
     const target = current.find((c) => c.id === cardId);
     if (target) {
@@ -354,7 +354,7 @@ export async function recordCardUse(userId: string, cardId: string): Promise<voi
  * Get user metadata (E2EE settings, salt).
  */
 export async function getUserMeta(userId: string): Promise<UserMeta | null> {
-  if (!db || !userId) return null;
+  if (!db || !userId || userId.startsWith('local-guest-')) return null;
   const metaRef = doc(db, 'users', userId, 'meta', 'settings');
   const snap = await getDoc(metaRef);
   if (!snap.exists()) return null;
@@ -366,7 +366,7 @@ export async function getUserMeta(userId: string): Promise<UserMeta | null> {
  * Save user metadata.
  */
 export async function saveUserMeta(userId: string, meta: UserMeta): Promise<void> {
-  if (!db || !userId) return;
+  if (!db || !userId || userId.startsWith('local-guest-')) return;
   const validated = UserMetaSchema.parse(meta);
   const metaRef = doc(db, 'users', userId, 'meta', 'settings');
   await setDoc(metaRef, cleanFirestoreData(validated), { merge: true });

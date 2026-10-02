@@ -16,7 +16,7 @@ A mobile-first, Apple Wallet-styled payment QR code manager built with **Next.js
 - **Smart QR Pipeline**: Upload or paste screenshots; automatically decodes payload with `jsQR` (max 1200px downscale, `attemptBoth` inversion). Valid QR codes are stored purely as payload strings and rendered razor-sharp; non-decodable images fallback to high-quality JPEG data.
 - **Instant Launch & Offline First**: Local cache opens your default card's QR instantly on launch, even before Firebase initializes. Works 100% offline via Firestore `persistentLocalCache` and Service Worker.
 - **App Lock & Biometrics**:
-  - 4-to-6 digit PIN hashed with **PBKDF2-SHA256 (310,000 iterations)**.
+  - 4-digit PIN hashed with **PBKDF2-SHA256 (310,000 iterations)**.
   - Biometric authentication via **WebAuthn Passkeys** (Touch ID, Face ID, Windows Hello).
   - Configurable auto-lock background timeout (`Immediately`, `30s`, `1m`, `5m`).
   - Lockout progression after 5 failed attempts (30s, 1m, 5m delays).
@@ -119,7 +119,7 @@ npm run build
 - [ ] Tap "Save Image" to download PNG or "Share" for native Web Share sheet.
 
 ### 4. App Lock
-- [ ] In Settings > App Lock, configure a 4-6 digit PIN.
+- [ ] In Settings > App Lock, configure a 4-digit PIN.
 - [ ] Enable Biometrics (Touch ID / Face ID / Windows Hello).
 - [ ] Test auto-lock timeout (`Immediate`, `30s`, `1m`, `5m`).
 - [ ] Enter wrong PIN 5 times: verify lockout timer disables inputs for 30s.

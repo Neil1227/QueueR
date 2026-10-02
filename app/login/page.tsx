@@ -181,7 +181,7 @@ function LoginContent() {
 
         <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
           <ShieldCheck className="w-3 h-3" />
-          <span>AES-256 E2EE</span>
+          <span>Secure & Encrypted</span>
         </span>
       </header>
 
@@ -399,7 +399,7 @@ function LoginContent() {
               <span>Smart QR Ph</span>
             </div>
             <p className="text-[11px] text-muted leading-tight">
-              Request exact amounts & dynamic notes with CRC-16 EMVCo.
+              Request exact amounts & dynamic notes with standard QR Ph.
             </p>
           </div>
 
@@ -419,7 +419,7 @@ function LoginContent() {
       <footer className="text-center text-[11px] text-muted space-y-1 pt-4 border-t border-line/20">
         <p className="flex items-center justify-center gap-1 font-medium">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 inline" />
-          <span>Client-side WebCrypto AES-256 GCM Zero-Knowledge Encryption</span>
+          <span>End-to-End Encrypted Cloud Storage</span>
         </p>
         <p className="opacity-70">QueueR · Unified Payment QR Cards</p>
       </footer>

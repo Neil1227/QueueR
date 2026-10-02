@@ -539,17 +539,17 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
       )}
 
       {/* Action Buttons Row: Copy, Share, Share Image */}
-      <div className="flex flex-wrap gap-2.5 w-[min(88vw,360px)] mt-auto pt-3">
-        {card.number && (
+      <div className={`grid ${card.number ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5 sm:gap-2 w-full max-w-[340px] mt-auto pt-2 sm:pt-3`}>
+        {card.number ? (
           <button
             type="button"
             onClick={handleCopyNumber}
-            className="flex-1 min-w-[95px] py-3 px-3 rounded-2xl bg-white text-[#1D1D1F] font-semibold text-sm shadow-md border border-black/10 hover:bg-white/95 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            className="py-2 sm:py-2.5 px-2 rounded-xl sm:rounded-2xl bg-white text-[#1D1D1F] font-semibold text-xs sm:text-sm shadow-sm border border-black/10 hover:bg-white/95 active:scale-95 transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer truncate"
           >
-            <Copy className="w-4 h-4" />
-            <span>Copy</span>
+            <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="truncate">Copy</span>
           </button>
-        )}
+        ) : null}
 
         <button
           type="button"
@@ -559,19 +559,19 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
             backgroundColor: fg === '#1D1D1F' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.22)',
             border: fg === '#1D1D1F' ? '1px solid rgba(0, 0, 0, 0.14)' : '1px solid rgba(255, 255, 255, 0.22)',
           }}
-          className="flex-1 min-w-[95px] py-3 px-3 rounded-2xl backdrop-blur-md font-semibold text-sm shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:brightness-95"
+          className="py-2 sm:py-2.5 px-2 rounded-xl sm:rounded-2xl backdrop-blur-md font-semibold text-xs sm:text-sm shadow-sm active:scale-95 transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer hover:brightness-95 truncate"
         >
-          <Share2 className="w-4 h-4" />
-          <span>Share</span>
+          <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+          <span className="truncate">Share</span>
         </button>
 
         <button
           type="button"
           onClick={handleOpenShareImageModal}
-          className="flex-1 min-w-[110px] py-3 px-3 rounded-2xl bg-white text-[#1D1D1F] font-semibold text-sm shadow-md border border-black/10 hover:bg-white/95 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+          className="py-2 sm:py-2.5 px-2 rounded-xl sm:rounded-2xl bg-white text-[#1D1D1F] font-semibold text-xs sm:text-sm shadow-sm border border-black/10 hover:bg-white/95 active:scale-95 transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer truncate"
         >
-          <ImageIcon className="w-4 h-4" />
-          <span>Share image</span>
+          <ImageIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+          <span className="truncate">Share Image</span>
         </button>
       </div>
 

@@ -80,7 +80,16 @@ export function useAuth(): AuthState {
         auth,
         (currentUser) => {
           if (isMounted) {
-            setUser(currentUser);
+            if (currentUser) {
+              setUser(currentUser);
+            } else {
+              const localGuestId = typeof window !== 'undefined' ? localStorage.getItem('qr_wallet_local_guest_uid') : null;
+              if (localGuestId) {
+                setUser({ uid: localGuestId, isAnonymous: true, email: null, displayName: 'Local Guest' } as unknown as User);
+              } else {
+                setUser(null);
+              }
+            }
             setLoading(false);
           }
         },
@@ -175,25 +184,38 @@ export function useAuth(): AuthState {
   const handleSignInGuest = async () => {
     setError(null);
     setUnauthorizedDomain(null);
-    if (!auth) {
-      const guestUid = 'local-guest-' + Math.random().toString(36).substring(2, 9);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('qr_wallet_local_guest_uid', guestUid);
-        localStorage.removeItem('qr_wallet_local_google_user');
-      }
-      const fakeUser = { uid: guestUid, isAnonymous: true, email: null, displayName: 'Local Guest' } as unknown as User;
-      setUser(fakeUser);
-      return fakeUser;
+
+    let guestUid = typeof window !== 'undefined' ? localStorage.getItem('qr_wallet_local_guest_uid') : null;
+    if (!guestUid) {
+      guestUid = 'local-guest-' + Math.random().toString(36).substring(2, 9);
     }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('qr_wallet_local_guest_uid', guestUid);
+      localStorage.removeItem('qr_wallet_local_google_user');
+      sessionStorage.setItem('qr_wallet_session_active', 'true');
+    }
+    const localGuestUser = {
+      uid: guestUid,
+      isAnonymous: true,
+      email: null,
+      displayName: 'Local Guest',
+    } as unknown as User;
+
+    if (!auth) {
+      setUser(localGuestUser);
+      return localGuestUser;
+    }
+
     try {
-      return await signInGuest();
+      const firebaseUser = await signInGuest();
+      setUser(firebaseUser);
+      return firebaseUser;
     } catch (err: any) {
-      const msg = err?.message || 'Guest sign-in failed';
-      setError(msg);
-      if (msg.includes('Unauthorized Domain') || err?.code === 'auth/unauthorized-domain') {
-        setUnauthorizedDomain(getCurrentDomain());
-      }
-      throw err;
+      // If Firebase Anonymous sign-in is disabled / restricted (auth/admin-restricted-operation),
+      // seamlessly fallback to persistent local offline guest mode without breaking the demo!
+      console.warn('Firebase Anonymous sign-in not enabled; continuing in Offline Local Guest mode:', err?.message);
+      setUser(localGuestUser);
+      return localGuestUser;
     }
   };
 
@@ -218,15 +240,19 @@ export function useAuth(): AuthState {
   const handleSignOut = async () => {
     setError(null);
     setUnauthorizedDomain(null);
-    if (!auth) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('qr_wallet_local_guest_uid');
-        localStorage.removeItem('qr_wallet_local_google_user');
-      }
-      setUser(null);
-      return;
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('qr_wallet_local_guest_uid');
+      localStorage.removeItem('qr_wallet_local_google_user');
+      sessionStorage.removeItem('qr_wallet_session_active');
     }
-    await logOut();
+    if (auth) {
+      try {
+        await logOut();
+      } catch (err) {
+        console.warn('Logout warning:', err);
+      }
+    }
+    setUser(null);
   };
 
   return {
