@@ -216,6 +216,15 @@ export async function logOut(): Promise<void> {
   await signOut(auth);
 }
 
+export function isLocalOfflineUser(userId?: string | null): boolean {
+  if (!userId) return true;
+  return (
+    userId.startsWith('local-guest-') ||
+    userId.startsWith('google-user-') ||
+    userId.startsWith('local-')
+  );
+}
+
 /**
  * Subscribe to realtime card updates from Firestore for a given user.
  * Falls back to local storage cache if offline or Firebase is not configured.
@@ -226,12 +235,10 @@ export function subscribeToUserCards(
   onError?: (err: Error) => void
 ): () => void {
   // Always emit cached cards first for instant display
-  const initialCards = getCachedCards();
-  if (initialCards.length > 0) {
-    onCards(initialCards);
-  }
+  const initialCards = getCachedCards(userId);
+  onCards(initialCards);
 
-  if (!db || !userId || userId.startsWith('local-guest-')) {
+  if (!db || isLocalOfflineUser(userId)) {
     return () => {};
   }
 
@@ -254,11 +261,13 @@ export function subscribeToUserCards(
       });
 
       // Update local storage cache
-      setCachedCards(cards);
+      setCachedCards(cards, userId);
       onCards(cards);
     },
     (err) => {
       console.warn('Firestore snapshot error:', err);
+      // On error, still emit whatever cached cards we have so UI doesn't hang in skeleton state
+      onCards(initialCards);
       if (onError) onError(err);
     }
   );
@@ -286,9 +295,9 @@ export async function saveUserCard(
 ): Promise<void> {
   const validated = CardSchema.parse(cardData);
 
-  if (!db || !userId || userId.startsWith('local-guest-')) {
+  if (!db || isLocalOfflineUser(userId)) {
     // Local offline storage fallback
-    const current = getCachedCards();
+    const current = getCachedCards(userId);
     const filtered = current.filter((c) => c.id !== validated.id);
     if (validated.isDefault) {
       filtered.forEach((c) => {
@@ -296,7 +305,7 @@ export async function saveUserCard(
       });
     }
     const updated = [validated, ...filtered];
-    setCachedCards(updated);
+    setCachedCards(updated, userId);
     return;
   }
 
@@ -316,10 +325,10 @@ export async function saveUserCard(
  * Delete a card by ID.
  */
 export async function deleteUserCard(userId: string, cardId: string): Promise<void> {
-  if (!db || !userId || userId.startsWith('local-guest-')) {
-    const current = getCachedCards();
+  if (!db || isLocalOfflineUser(userId)) {
+    const current = getCachedCards(userId);
     const updated = current.filter((c) => c.id !== cardId);
-    setCachedCards(updated);
+    setCachedCards(updated, userId);
     return;
   }
 
@@ -332,13 +341,13 @@ export async function deleteUserCard(userId: string, cardId: string): Promise<vo
  */
 export async function recordCardUse(userId: string, cardId: string): Promise<void> {
   const now = Date.now();
-  if (!db || !userId || userId.startsWith('local-guest-')) {
-    const current = getCachedCards();
+  if (!db || isLocalOfflineUser(userId)) {
+    const current = getCachedCards(userId);
     const target = current.find((c) => c.id === cardId);
     if (target) {
       target.useCount = (target.useCount || 0) + 1;
       target.lastUsedAt = now;
-      setCachedCards(current);
+      setCachedCards(current, userId);
     }
     return;
   }
@@ -354,7 +363,7 @@ export async function recordCardUse(userId: string, cardId: string): Promise<voi
  * Get user metadata (E2EE settings, salt).
  */
 export async function getUserMeta(userId: string): Promise<UserMeta | null> {
-  if (!db || !userId || userId.startsWith('local-guest-')) return null;
+  if (!db || isLocalOfflineUser(userId)) return null;
   const metaRef = doc(db, 'users', userId, 'meta', 'settings');
   const snap = await getDoc(metaRef);
   if (!snap.exists()) return null;
@@ -366,8 +375,17 @@ export async function getUserMeta(userId: string): Promise<UserMeta | null> {
  * Save user metadata.
  */
 export async function saveUserMeta(userId: string, meta: UserMeta): Promise<void> {
-  if (!db || !userId || userId.startsWith('local-guest-')) return;
+  if (!db || isLocalOfflineUser(userId)) return;
   const validated = UserMetaSchema.parse(meta);
   const metaRef = doc(db, 'users', userId, 'meta', 'settings');
   await setDoc(metaRef, cleanFirestoreData(validated), { merge: true });
+}
+
+/**
+ * Save user 4-digit security PIN hash and salt to cloud metadata.
+ */
+export async function saveUserPin(userId: string, pinHash: string, pinSalt: string): Promise<void> {
+  if (!db || isLocalOfflineUser(userId)) return;
+  const metaRef = doc(db, 'users', userId, 'meta', 'settings');
+  await setDoc(metaRef, { pinHash, pinSalt, updatedAt: Date.now() }, { merge: true });
 }

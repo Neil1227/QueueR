@@ -43,17 +43,25 @@ export function applyTheme(theme: ThemeMode): void {
   if (typeof document === 'undefined') return;
 
   const root = document.documentElement;
+  const effective = getEffectiveTheme(theme);
+
   if (theme === 'dark') {
     root.setAttribute('data-theme', 'dark');
+    root.classList.add('dark');
   } else if (theme === 'light') {
     root.setAttribute('data-theme', 'light');
+    root.classList.remove('dark');
   } else {
-    // System mode: remove explicit override or let CSS media query drive it
+    // System mode: remove explicit override so CSS media query activates
     root.removeAttribute('data-theme');
+    if (effective === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
   }
 
   // Update theme-color meta tag
-  const effective = getEffectiveTheme(theme);
   const themeColorMeta = document.querySelector('meta[name="theme-color"]:not([media])');
   if (themeColorMeta) {
     themeColorMeta.setAttribute('content', effective === 'dark' ? '#1D1D1F' : '#F5F5F7');

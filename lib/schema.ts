@@ -66,6 +66,8 @@ export type CardInput = z.infer<typeof CardInputSchema>;
 export const UserMetaSchema = z.object({
   e2eeEnabled: z.boolean().default(false),
   salt: z.string().optional(),
+  pinHash: z.string().optional(),
+  pinSalt: z.string().optional(),
   updatedAt: z.number().default(() => Date.now()),
 });
 

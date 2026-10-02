@@ -18,6 +18,25 @@ import {
 } from '@/lib/cards';
 import { deriveKey, deriveUserKey, encryptCardForStorage, decryptCardFromStorage, generateSalt } from '@/lib/crypto';
 
+const CARD_LOAD_TIMEOUT_MS = 1200;
+const METADATA_TIMEOUT_MS = 1200;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Timed out')), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
 export function useCards(userId?: string | null) {
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,12 +54,12 @@ export function useCards(userId?: string | null) {
     let isMounted = true;
     (async () => {
       try {
-        let meta = await getUserMeta(userId);
+        let meta = await withTimeout(getUserMeta(userId), METADATA_TIMEOUT_MS);
         let salt = meta?.salt;
         if (!salt) {
           salt = generateSalt();
           meta = { e2eeEnabled: true, salt, updatedAt: Date.now() };
-          await saveUserMeta(userId, meta);
+          await withTimeout(saveUserMeta(userId, meta), METADATA_TIMEOUT_MS);
         }
         if (isMounted) setUserMeta(meta);
 
@@ -79,9 +98,15 @@ export function useCards(userId?: string | null) {
       setLoading(true);
     }
 
+    // Safety timeout: Ensure loading finishes within 2.5s even if Firestore is slow or offline
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+    }, CARD_LOAD_TIMEOUT_MS);
+
     const unsubscribe = subscribeToUserCards(
       userId,
       async (newCards) => {
+        clearTimeout(safetyTimer);
         let processedCards = newCards;
 
         // If we have encryption key, decrypt cards
@@ -103,12 +128,39 @@ export function useCards(userId?: string | null) {
         setLoading(false);
       },
       () => {
+        clearTimeout(safetyTimer);
         setLoading(false);
       }
     );
 
-    return () => unsubscribe();
-  }, [userId, e2eeKey]);
+    return () => {
+      clearTimeout(safetyTimer);
+      unsubscribe();
+    };
+  }, [userId]);
+
+  // Reactive decryption when e2eeKey is derived without resetting loading state
+  useEffect(() => {
+    if (!e2eeKey || cards.length === 0) return;
+    let isMounted = true;
+    (async () => {
+      const decrypted = await Promise.all(
+        cards.map(async (c) => {
+          try {
+            return await decryptCardFromStorage(c, e2eeKey);
+          } catch {
+            return c;
+          }
+        })
+      );
+      if (isMounted) {
+        setCards(sortCards(decrypted));
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [e2eeKey]);
 
   // Unlock E2EE with custom passphrase
   const unlockE2EE = useCallback(

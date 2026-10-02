@@ -19,10 +19,15 @@ import {
   getLockoutRemainingSeconds,
   getFailedAttempts,
   VerifyPinResult,
+  restorePinFromCloud,
 } from '@/lib/app-lock';
+import { getUserMeta, saveUserPin, isLocalOfflineUser } from '@/lib/firebase';
 
-export function useAppLock() {
-  const [hasPinState, setHasPinState] = useState(false);
+export function useAppLock(userId?: string | null) {
+  const [hasPinState, setHasPinState] = useState(() => {
+    if (typeof window !== 'undefined') return hasConfiguredPin();
+    return true;
+  });
   const [hasPasskeyState, setHasPasskeyState] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [lockTimeoutState, setLockTimeoutState] = useState<LockTimeoutOption>(0);
@@ -32,31 +37,52 @@ export function useAppLock() {
 
   const backgroundTimeRef = useRef<number | null>(null);
 
-  // Synchronize on mount and handle biometric detection
+  // Synchronize on mount and handle biometric detection + cloud PIN auto-restore
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const pinExists = hasConfiguredPin();
     const passkeyExists = hasConfiguredPasskey();
     const timeout = getLockTimeout();
     const blur = isBlurPrivacyEnabled();
     const bioSupported = hasWebAuthn();
     const remaining = getLockoutRemainingSeconds();
 
-    setHasPinState(pinExists);
     setHasPasskeyState(passkeyExists);
     setLockTimeoutState(timeout);
     setBlurPrivacyState(blur);
     setIsBiometricSupported(bioSupported);
     setLockoutSeconds(remaining);
 
-    // Lock on launch/reopen if security is enabled and session is not active
-    if (pinExists || passkeyExists) {
-      const isSessionActive = sessionStorage.getItem('qr_wallet_session_active') === 'true';
-      if (!isSessionActive) {
-        setIsLocked(true);
+    let isMounted = true;
+    (async () => {
+      let pinExists = hasConfiguredPin();
+      if (!pinExists && userId && !isLocalOfflineUser(userId)) {
+        try {
+          const meta = await getUserMeta(userId);
+          if (meta?.pinHash && meta?.pinSalt) {
+            restorePinFromCloud(meta.pinHash, meta.pinSalt);
+            pinExists = true;
+          }
+        } catch (err) {
+          console.warn('Error fetching cloud PIN in useAppLock:', err);
+        }
       }
-    }
-  }, []);
+
+      if (!isMounted) return;
+      setHasPinState(pinExists);
+
+      // Lock on launch/reopen if security is enabled and session is not active
+      if (pinExists || passkeyExists) {
+        const isSessionActive = sessionStorage.getItem('qr_wallet_session_active') === 'true';
+        if (!isSessionActive) {
+          setIsLocked(true);
+        }
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
 
   // Lockout countdown timer
   useEffect(() => {
@@ -128,14 +154,21 @@ export function useAppLock() {
 
   const updatePin = useCallback(async (pin: string | null) => {
     if (pin) {
-      await setPin(pin);
+      const { hash, salt } = await setPin(pin);
       setHasPinState(true);
+      if (userId && !isLocalOfflineUser(userId)) {
+        try {
+          await saveUserPin(userId, hash, salt);
+        } catch (err) {
+          console.warn('Failed to save updated PIN to cloud:', err);
+        }
+      }
     } else {
       removePin();
       setHasPinState(false);
       setIsLocked(false);
     }
-  }, []);
+  }, [userId]);
 
   const togglePasskey = useCallback(async (enable: boolean) => {
     if (enable) {

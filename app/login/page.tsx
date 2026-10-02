@@ -7,7 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/Toast';
 import { GoogleIcon } from '@/components/GoogleIcon';
 import { PinSetupModal } from '@/components/PinSetupModal';
-import { hasConfiguredPin, setPin } from '@/lib/app-lock';
+import { hasConfiguredPin, setPin, restorePinFromCloud } from '@/lib/app-lock';
+import { getUserMeta, saveUserPin, isLocalOfflineUser } from '@/lib/firebase';
 import {
   QrCode,
   Mail,
@@ -60,14 +61,37 @@ function LoginContent() {
 
   // If already logged in, route immediately
   useEffect(() => {
-    if (mounted && !authStateLoading && (user || isGuest)) {
-      if (!hasConfiguredPin()) {
+    if (!mounted || authStateLoading || (!user && !isGuest)) return;
+
+    let isMounted = true;
+    (async () => {
+      let hasPin = hasConfiguredPin();
+      const currentUid = user?.uid;
+      if (!hasPin && currentUid && !isLocalOfflineUser(currentUid)) {
+        try {
+          const meta = await getUserMeta(currentUid);
+          if (meta?.pinHash && meta?.pinSalt) {
+            restorePinFromCloud(meta.pinHash, meta.pinSalt, user?.email);
+            hasPin = true;
+          }
+        } catch (err) {
+          console.warn('Error checking cloud PIN:', err);
+        }
+      }
+
+      if (!isMounted) return;
+
+      if (!hasPin) {
         setShowPinSetup(true);
       } else {
         activateSession();
         router.replace(redirectPath);
       }
-    }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
   }, [mounted, user, isGuest, authStateLoading, router, redirectPath]);
 
   const activateSession = () => {
@@ -76,8 +100,22 @@ function LoginContent() {
     }
   };
 
-  const handlePostAuthSuccess = (emailAddress?: string | null) => {
-    if (!hasConfiguredPin()) {
+  const handlePostAuthSuccess = async (emailAddress?: string | null, targetUid?: string | null) => {
+    let hasPin = hasConfiguredPin();
+    const uid = targetUid || user?.uid;
+    if (!hasPin && uid && !isLocalOfflineUser(uid)) {
+      try {
+        const meta = await getUserMeta(uid);
+        if (meta?.pinHash && meta?.pinSalt) {
+          restorePinFromCloud(meta.pinHash, meta.pinSalt, emailAddress || user?.email);
+          hasPin = true;
+        }
+      } catch (err) {
+        console.warn('Error checking cloud PIN on login:', err);
+      }
+    }
+
+    if (!hasPin) {
       setShowPinSetup(true);
     } else {
       activateSession();
@@ -86,7 +124,15 @@ function LoginContent() {
   };
 
   const handleSavePinFromSetup = async (pin: string) => {
-    await setPin(pin, user?.email || email);
+    const { hash, salt } = await setPin(pin, user?.email || email);
+    const uid = user?.uid;
+    if (uid && !isLocalOfflineUser(uid)) {
+      try {
+        await saveUserPin(uid, hash, salt);
+      } catch (err) {
+        console.warn('Failed to save PIN to cloud:', err);
+      }
+    }
     activateSession();
     showToast('4-Digit Security PIN configured');
     setShowPinSetup(false);
@@ -100,7 +146,7 @@ function LoginContent() {
       const loggedUser = await signInWithGoogle(forceRedirect);
       if (loggedUser) {
         showToast('Signed in with Google');
-        handlePostAuthSuccess(loggedUser.email);
+        await handlePostAuthSuccess(loggedUser.email, loggedUser.uid);
       }
     } catch (err: any) {
       const msg = err?.message || 'Google sign-in failed. Please try again.';
@@ -121,11 +167,11 @@ function LoginContent() {
       if (authMode === 'signup') {
         const newUser = await signUpWithEmail(email, password);
         showToast('Account created & signed in');
-        handlePostAuthSuccess(newUser?.email);
+        await handlePostAuthSuccess(newUser?.email, newUser?.uid);
       } else {
         const loggedUser = await signInWithEmail(email, password);
         showToast('Signed in successfully');
-        handlePostAuthSuccess(loggedUser?.email);
+        await handlePostAuthSuccess(loggedUser?.email, loggedUser?.uid);
       }
     } catch (err: any) {
       const msg = err?.message || 'Authentication failed. Please check your credentials.';
@@ -160,9 +206,9 @@ function LoginContent() {
     setLoadingAction('guest');
     setErrorMessage(null);
     try {
-      await signInGuest();
+      const guestUser = await signInGuest();
       showToast('Continuing in Guest Mode (Offline Storage)');
-      handlePostAuthSuccess(null);
+      await handlePostAuthSuccess(null, guestUser?.uid);
     } catch (err: any) {
       const msg = err?.message || 'Guest sign-in failed';
       setErrorMessage(msg);
@@ -174,7 +220,7 @@ function LoginContent() {
 
   const activeDomain = unauthorizedDomain || (typeof window !== 'undefined' ? window.location.hostname : '');
 
-  if (!mounted || authStateLoading || ((user || isGuest) && !showPinSetup)) {
+  if (!mounted || ((user || isGuest) && hasConfiguredPin() && !showPinSetup)) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />

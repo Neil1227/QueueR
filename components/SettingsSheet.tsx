@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from './Toast';
 import { PreviewNumberFormat } from '@/lib/cards';
@@ -88,6 +89,7 @@ export function SettingsSheet({
   theme = 'system',
   onUpdateTheme,
 }: SettingsSheetProps) {
+  const router = useRouter();
   const { user, isGuest, isConfigured, signInWithGoogle, signInWithEmail, signUpWithEmail, signInGuest, signOut } = useAuth();
   const { showToast } = useToast();
 
@@ -143,12 +145,10 @@ export function SettingsSheet({
       sessionStorage.removeItem('qr_wallet_session_active');
       sessionStorage.removeItem('qr_wallet_e2ee_passphrase');
     }
-    await signOut();
     showToast('Signed out');
     onClose();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    }
+    await signOut();
+    router.replace('/login');
   };
 
   const handleE2EESubmit = async (e: React.FormEvent) => {

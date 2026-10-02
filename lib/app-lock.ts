@@ -63,8 +63,13 @@ export function getPinEmail(): string | null {
   return localStorage.getItem(PIN_EMAIL_KEY);
 }
 
-export async function setPin(pin: string, email?: string | null): Promise<void> {
-  if (typeof window === 'undefined') return;
+export interface SetPinResult {
+  hash: string;
+  salt: string;
+}
+
+export async function setPin(pin: string, email?: string | null): Promise<SetPinResult> {
+  if (typeof window === 'undefined') return { hash: '', salt: '' };
   const salt = generateSalt(16);
   const hash = await hashPin(pin, salt);
   localStorage.setItem(PIN_SALT_KEY, salt);
@@ -73,6 +78,25 @@ export async function setPin(pin: string, email?: string | null): Promise<void> 
     localStorage.setItem(PIN_EMAIL_KEY, email);
   }
   resetLockout();
+  return { hash, salt };
+}
+
+export function restorePinFromCloud(pinHash: string, pinSalt: string, email?: string | null): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(PIN_HASH_KEY, pinHash);
+  localStorage.setItem(PIN_SALT_KEY, pinSalt);
+  if (email) {
+    localStorage.setItem(PIN_EMAIL_KEY, email);
+  }
+  resetLockout();
+}
+
+export function getPinData(): { pinHash: string | null; pinSalt: string | null } {
+  if (typeof window === 'undefined') return { pinHash: null, pinSalt: null };
+  return {
+    pinHash: localStorage.getItem(PIN_HASH_KEY),
+    pinSalt: localStorage.getItem(PIN_SALT_KEY),
+  };
 }
 
 export function getFailedAttempts(): number {

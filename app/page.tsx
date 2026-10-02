@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardInput, CardCategory } from '@/lib/schema';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,7 +17,6 @@ import { AppLockModal } from '@/components/AppLockModal';
 import { PinSetupModal } from '@/components/PinSetupModal';
 import { ForgotPinModal } from '@/components/ForgotPinModal';
 import {
-  getCachedDefaultCard,
   getPreviewNumberFormat,
   setPreviewNumberFormat,
   PreviewNumberFormat,
@@ -44,7 +43,7 @@ export default function HomePage() {
     updateLockTimeout,
     toggleBlurPrivacy,
     lockManually,
-  } = useAppLock();
+  } = useAppLock(user?.uid);
 
   const [isForgotPinOpen, setIsForgotPinOpen] = useState(false);
   const [isResetPinOpen, setIsResetPinOpen] = useState(false);
@@ -53,7 +52,7 @@ export default function HomePage() {
     setMounted(true);
   }, []);
 
-  // Authentication gate: If not logged in at all, redirect to /login
+  // Authentication gate: If not logged in at all, redirect to /login smoothly
   useEffect(() => {
     if (mounted && !authLoading && !user && !isGuest) {
       router.replace('/login');
@@ -91,7 +90,6 @@ export default function HomePage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [numberFormat, setNumberFormat] = useState<PreviewNumberFormat>('last4');
-  const quickAccessHandledRef = useRef(false);
 
   // Initialize privacy preview number format from localStorage
   useEffect(() => {
@@ -102,30 +100,6 @@ export default function HomePage() {
     setNumberFormat(format);
     setPreviewNumberFormat(format);
   };
-
-  // Quick Access Launch: If default card exists and no ?stack param, open receive view immediately (only when app is unlocked)
-  useEffect(() => {
-    if (quickAccessHandledRef.current || isLocked || !hasPin) return;
-
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const isStackParam = params.has('stack');
-
-      if (!isStackParam) {
-        // First try synchronous local storage cached default
-        const cachedDef = getCachedDefaultCard(user?.uid);
-        const targetCard = defaultCard || cachedDef;
-
-        if (targetCard && !receiveCard) {
-          setReceiveCard(targetCard);
-          recordUse(targetCard.id);
-          quickAccessHandledRef.current = true;
-        }
-      } else {
-        quickAccessHandledRef.current = true;
-      }
-    }
-  }, [defaultCard, receiveCard, recordUse, isLocked, hasPin, user?.uid]);
 
   const handleUnlockPin = async (pin: string) => {
     const res = await unlockWithPin(pin);
@@ -158,7 +132,10 @@ export default function HomePage() {
     }
   };
 
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
   const handleSignOut = async () => {
+    setIsSigningOut(true);
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('qr_wallet_session_active');
       sessionStorage.removeItem('qr_wallet_e2ee_passphrase');
@@ -211,7 +188,12 @@ export default function HomePage() {
     receiveCard || isEditorOpen || isSettingsOpen || isLocked || !hasPin || isForgotPinOpen || isResetPinOpen
   );
 
-  if (!mounted || authLoading || (cardsLoading && cards.length === 0) || (!user && !isGuest)) {
+  // When signing out or redirecting unauthenticated user, render clean background without skeleton flash
+  if (isSigningOut || (!user && !isGuest && !authLoading)) {
+    return <div className="min-h-screen bg-bg" />;
+  }
+
+  if (!mounted || authLoading) {
     return <CardStackSkeleton />;
   }
 
