@@ -259,43 +259,6 @@ function LoginContent() {
             </div>
           )}
 
-          {/* Primary Google Login Button */}
-          <div className="space-y-1.5">
-            <button
-              type="button"
-              id="google-login-button"
-              disabled={Boolean(loadingAction)}
-              onClick={() => handleGoogleLogin(false)}
-              className="w-full py-3.5 px-4 rounded-2xl bg-surface hover:bg-surface/80 text-text font-bold text-sm flex items-center justify-center gap-3 shadow-sm border border-line/60 hover:border-accent active:scale-[0.98] transition-all cursor-pointer group disabled:opacity-50"
-            >
-              <GoogleIcon className="w-5 h-5 shrink-0 transition-transform group-hover:scale-110" />
-              <span>
-                {loadingAction === 'google' || loadingAction === 'google-redirect'
-                  ? 'Connecting to Google...'
-                  : 'Continue with Google'}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleGoogleLogin(true)}
-              disabled={Boolean(loadingAction)}
-              className="w-full text-center text-[11px] text-muted hover:text-accent font-medium py-0.5 cursor-pointer flex items-center justify-center gap-1 opacity-70 hover:opacity-100 transition-opacity"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>On mobile or popup blocked? Click for Full Page Redirect</span>
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-2">
-            <div className="flex-1 h-px bg-line/30" />
-            <span className="text-[11px] uppercase tracking-wider text-muted font-semibold">
-              or email & password
-            </span>
-            <div className="flex-1 h-px bg-line/30" />
-          </div>
-
           {/* Email / Password Form */}
           <form onSubmit={handleEmailAuth} className="space-y-3">
             <div className="space-y-1">
@@ -376,6 +339,43 @@ function LoginContent() {
               </button>
             </div>
           </form>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-2">
+            <div className="flex-1 h-px bg-line/30" />
+            <span className="text-[11px] uppercase tracking-wider text-muted font-semibold">
+              or continue with
+            </span>
+            <div className="flex-1 h-px bg-line/30" />
+          </div>
+
+          {/* Primary Google Login Button */}
+          <div className="space-y-1.5">
+            <button
+              type="button"
+              id="google-login-button"
+              disabled={Boolean(loadingAction)}
+              onClick={() => handleGoogleLogin(false)}
+              className="w-full py-3.5 px-4 rounded-2xl bg-surface hover:bg-surface/80 text-text font-bold text-sm flex items-center justify-center gap-3 shadow-sm border border-line/60 hover:border-accent active:scale-[0.98] transition-all cursor-pointer group disabled:opacity-50"
+            >
+              <GoogleIcon className="w-5 h-5 shrink-0 transition-transform group-hover:scale-110" />
+              <span>
+                {loadingAction === 'google' || loadingAction === 'google-redirect'
+                  ? 'Connecting to Google...'
+                  : 'Continue with Google'}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleGoogleLogin(true)}
+              disabled={Boolean(loadingAction)}
+              className="w-full text-center text-[11px] text-muted hover:text-accent font-medium py-0.5 cursor-pointer flex items-center justify-center gap-1 opacity-70 hover:opacity-100 transition-opacity"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>On mobile or popup blocked? Click for Full Page Redirect</span>
+            </button>
+          </div>
 
           {/* Continue as Guest */}
           <div className="pt-2 border-t border-line/20">
