@@ -17,7 +17,6 @@ import {
 import { removePin, removePasskey } from '@/lib/app-lock';
 import { clearCachedCards } from '@/lib/cards';
 
-const AUTH_INIT_TIMEOUT_MS = 1200;
 const GUEST_SIGN_IN_TIMEOUT_MS = 1500;
 const SESSION_USER_KEY = 'qr_wallet_session_user';
 
@@ -82,6 +81,7 @@ export function useAuth(): AuthState {
     const cachedSession = localStorage.getItem(SESSION_USER_KEY);
     const localGuestId = localStorage.getItem('qr_wallet_local_guest_uid');
     const localGoogleUser = localStorage.getItem('qr_wallet_local_google_user');
+    const isRedirectPending = sessionStorage.getItem('qr_wallet_auth_redirect_pending') === 'true';
 
     if (cachedSession) {
       try {
@@ -109,42 +109,43 @@ export function useAuth(): AuthState {
 
     let isMounted = true;
 
-    // Safety timeout: Ensure authLoading resolves within 3s under any network/platform condition
+    // Safety timeout: Ensure authLoading resolves under network errors (generous window for mobile OAuth redirect)
     const safetyTimer = setTimeout(() => {
       if (isMounted) {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('qr_wallet_auth_redirect_pending');
+        }
         setLoading(false);
       }
-    }, AUTH_INIT_TIMEOUT_MS);
+    }, isRedirectPending ? 8000 : 5000);
 
     const initAuth = async () => {
-      // Run redirect check in background with a quick timeout without blocking onAuthStateChanged
-      Promise.race([
-        checkRedirectResult(),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
-      ])
-        .then((redirectUser) => {
-          if (redirectUser && isMounted) {
-            cacheSessionUser(redirectUser);
-            setUser(redirectUser);
-            setLoading(false);
+      // 1. Process OAuth redirect result first
+      try {
+        const redirectUser = await checkRedirectResult();
+        if (redirectUser && isMounted) {
+          cacheSessionUser(redirectUser);
+          setUser(redirectUser);
+          setLoading(false);
+          clearTimeout(safetyTimer);
+        }
+      } catch (err: any) {
+        console.warn('OAuth redirect check notice:', err);
+        const msg = err?.message || 'Authentication redirect failed';
+        if (isMounted) {
+          setError(msg);
+          if (msg.includes('Unauthorized Domain') || err?.code === 'auth/unauthorized-domain') {
+            setUnauthorizedDomain(getCurrentDomain());
           }
-        })
-        .catch((err: any) => {
-          console.warn('OAuth redirect check notice:', err);
-          const msg = err?.message || 'Authentication redirect failed';
-          if (isMounted) {
-            setError(msg);
-            if (msg.includes('Unauthorized Domain') || err?.code === 'auth/unauthorized-domain') {
-              setUnauthorizedDomain(getCurrentDomain());
-            }
-          }
-        });
+        }
+      }
 
       if (!auth) {
         if (isMounted) setLoading(false);
         return () => {};
       }
 
+      // 2. Subscribe to auth state changes
       const unsubscribe = onAuthStateChanged(
         auth,
         (currentUser) => {
@@ -326,7 +327,7 @@ export function useAuth(): AuthState {
       return;
     }
     try {
-      await sendResetPasswordEmail(email);
+      await sendPasswordResetEmail(email);
     } catch (err: any) {
       const msg = err?.message || 'Failed to send password reset email';
       setError(msg);

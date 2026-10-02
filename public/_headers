@@ -1,9 +1,10 @@
 /*
   X-Content-Type-Options: nosniff
-  X-Frame-Options: DENY
+  X-Frame-Options: SAMEORIGIN
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.firebaseapp.com https://*.gstatic.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' blob: data: https://*.googleusercontent.com https://*.firebaseapp.com https://*.firebasestorage.app https://www.google.com https://*.google.com https://unavatar.io https://*.unavatar.io https://icons.duckduckgo.com https://*.duckduckgo.com https://*.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.firebasestorage.app wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.google-analytics.com https://*.analytics.google.com https://*.cloudfunctions.net https://www.google.com https://*.google.com https://unavatar.io https://*.unavatar.io; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com;
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://*.firebaseapp.com https://*.gstatic.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' blob: data: https://*.googleusercontent.com https://*.firebaseapp.com https://*.firebasestorage.app https://www.google.com https://*.google.com https://unavatar.io https://*.unavatar.io https://icons.duckduckgo.com https://*.duckduckgo.com https://*.gstatic.com; connect-src 'self' https://*.googleapis.com https://accounts.google.com https://*.firebaseio.com https://*.firebaseapp.com https://*.firebasestorage.app wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.google-analytics.com https://*.analytics.google.com https://*.cloudfunctions.net https://www.google.com https://*.google.com https://unavatar.io https://*.unavatar.io; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://apis.google.com;
 
 /sw.js
   Cache-Control: no-cache, no-store, must-revalidate

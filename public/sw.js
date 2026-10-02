@@ -18,7 +18,12 @@ const IGNORED_HOSTS = [
   'securetoken.googleapis.com',
   'firebaseinstallations.googleapis.com',
   'accounts.google.com',
+  'apis.google.com',
+  'oauth2.googleapis.com',
   'www.googleapis.com',
+  'firebaseapp.com',
+  'google.com',
+  'gstatic.com',
 ];
 
 self.addEventListener('install', (event) => {
@@ -54,7 +59,10 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   // Bypass Firebase, Firestore, and Google Auth APIs
-  if (IGNORED_HOSTS.some((host) => url.hostname.includes(host))) {
+  if (
+    IGNORED_HOSTS.some((host) => url.hostname.includes(host)) ||
+    url.pathname.includes('/__/auth/')
+  ) {
     return;
   }
 

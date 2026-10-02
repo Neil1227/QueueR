@@ -102,6 +102,15 @@ if (typeof window !== 'undefined' && isFirebaseConfigured) {
 
 export { app, auth, db };
 
+export function isStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true ||
+    document.referrer.includes('android-app://')
+  );
+}
+
 export function isMobileBrowser(): boolean {
   if (typeof window === 'undefined') return false;
   const ua = navigator.userAgent || '';
@@ -130,8 +139,14 @@ export async function checkRedirectResult(): Promise<User | null> {
   if (!auth) return null;
   try {
     const result = await getRedirectResult(auth);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('qr_wallet_auth_redirect_pending');
+    }
     return result?.user ?? null;
   } catch (err: any) {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('qr_wallet_auth_redirect_pending');
+    }
     throw handleAuthDomainError(err);
   }
 }
@@ -141,15 +156,26 @@ export async function signInWithGoogle(forceRedirect = false): Promise<User | nu
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
 
-  if (forceRedirect) {
+  // On standard mobile browser outside PWA standalone, popup windows are blocked or lose window.opener.
+  // Using signInWithRedirect provides a reliable 1-tap sign-in experience.
+  const shouldUseRedirect = forceRedirect || (isMobileBrowser() && !isStandalone());
+
+  if (shouldUseRedirect) {
     try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('qr_wallet_auth_redirect_pending', 'true');
+      }
       await signInWithRedirect(auth, provider);
       return null;
     } catch (err: any) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('qr_wallet_auth_redirect_pending');
+      }
       throw handleAuthDomainError(err);
     }
   }
 
+  // Desktop or PWA Standalone: Attempt popup first
   try {
     const result = await signInWithPopup(auth, provider);
     return result.user;
@@ -157,14 +183,27 @@ export async function signInWithGoogle(forceRedirect = false): Promise<User | nu
     const processed = handleAuthDomainError(err);
     if (processed !== err) throw processed;
 
+    // If popup was blocked or unavailable in the current browser, seamlessly fall back to redirect
     if (
       err?.code === 'auth/popup-blocked' ||
-      err?.code === 'auth/cancelled-popup-request'
+      err?.code === 'auth/cancelled-popup-request' ||
+      err?.code === 'auth/operation-not-supported-in-this-environment'
     ) {
-      throw new Error(
-        'Google login popup was blocked by your browser. Please tap "Click for Full Page Redirect" below to continue.'
-      );
+      console.warn('Popup blocked/unsupported, falling back to full-page redirect:', err?.code);
+      try {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('qr_wallet_auth_redirect_pending', 'true');
+        }
+        await signInWithRedirect(auth, provider);
+        return null;
+      } catch (redirectErr: any) {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('qr_wallet_auth_redirect_pending');
+        }
+        throw handleAuthDomainError(redirectErr);
+      }
     }
+
     if (err?.code === 'auth/popup-closed-by-user') {
       throw new Error('Google sign-in popup was closed before completing. Please try again.');
     }

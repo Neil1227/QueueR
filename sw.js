@@ -1,42 +1,129 @@
-const CACHE = "qr-wallet-v1";
-const CDN = [
-  "https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"
-];
-const LOCAL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
+const CACHE_NAME = 'qr-wallet-v1';
 
-self.addEventListener("install", e => {
-  e.waitUntil((async () => {
-    const c = await caches.open(CACHE);
-    await c.addAll(LOCAL);
-    await Promise.all(CDN.map(async u => {
-      try { await c.put(u, await fetch(u, { mode: "no-cors" })); } catch (_) {}
-    }));
-    self.skipWaiting();
-  })());
+const PRECACHE_ASSETS = [
+  '/',
+  '/index.html',
+  '/manifest.webmanifest',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
+  '/favicon.ico',
+];
+
+// URLs that must NEVER be intercepted or cached by service worker
+const IGNORED_HOSTS = [
+  'firestore.googleapis.com',
+  'identitytoolkit.googleapis.com',
+  'securetoken.googleapis.com',
+  'firebaseinstallations.googleapis.com',
+  'accounts.google.com',
+  'apis.google.com',
+  'oauth2.googleapis.com',
+  'www.googleapis.com',
+  'firebaseapp.com',
+  'google.com',
+  'gstatic.com',
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE_ASSETS).catch(() => {}))
+      .then(() => self.skipWaiting())
+  );
 });
 
-self.addEventListener("activate", e => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+      )
       .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener("fetch", e => {
-  if (e.request.method !== "GET") return;
-  e.respondWith((async () => {
-    const hit = await caches.match(e.request, { ignoreSearch: true });
-    if (hit) return hit;
-    try {
-      const res = await fetch(e.request);
-      if (res && (res.ok || res.type === "opaque")) {
-        const c = await caches.open(CACHE);
-        c.put(e.request, res.clone());
-      }
-      return res;
-    } catch (_) {
-      return e.request.mode === "navigate" ? caches.match("./index.html") : Response.error();
-    }
-  })());
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+
+  // Bypass Firebase, Firestore, and Google Auth APIs
+  if (
+    IGNORED_HOSTS.some((host) => url.hostname.includes(host)) ||
+    url.pathname.includes('/__/auth/')
+  ) {
+    return;
+  }
+
+  // Never intercept or cache encrypted backup files
+  if (url.pathname.endsWith('.qrw')) {
+    return;
+  }
+
+  // Google Fonts caching (Cache-First strategy)
+  if (url.hostname.includes('fonts.googleapis.com') || url.hostname.includes('fonts.gstatic.com')) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        try {
+          const response = await fetch(request);
+          if (response && response.ok) {
+            cache.put(request, response.clone());
+          }
+          return response;
+        } catch {
+          return cached || Response.error();
+        }
+      })
+    );
+    return;
+  }
+
+  // Navigation / Document request (Network-First with offline HTML fallback)
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cachedDoc = (await caches.match(request)) || (await caches.match('/index.html')) || (await caches.match('/'));
+          return cachedDoc || Response.error();
+        })
+    );
+    return;
+  }
+
+  // Static Assets (_next/static, icons, images) - Stale-While-Revalidate
+  event.respondWith(
+    caches.match(request, { ignoreSearch: true }).then((cachedResponse) => {
+      const fetchPromise = fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaque')) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => cachedResponse);
+
+      return cachedResponse || fetchPromise;
+    })
+  );
 });
