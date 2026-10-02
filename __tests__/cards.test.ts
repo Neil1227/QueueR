@@ -6,6 +6,9 @@ import {
   bringToFront,
   formatPreviewNumber,
   formatInputAccountNumber,
+  getCachedCards,
+  setCachedCards,
+  clearCachedCards,
 } from '../lib/cards';
 import { Card } from '../lib/schema';
 
@@ -182,8 +185,6 @@ describe('Cards utilities', () => {
   });
 
   describe('User-isolated local cache', () => {
-    const { getCachedCards, setCachedCards, clearCachedCards } = require('../lib/cards');
-
     it('isolates cache per user ID and prevents leaking across users', () => {
       const userCards: Card[] = [
         {
