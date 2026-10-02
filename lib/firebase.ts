@@ -141,9 +141,7 @@ export async function signInWithGoogle(forceRedirect = false): Promise<User | nu
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
 
-  const shouldRedirect = forceRedirect || isMobileBrowser();
-
-  if (shouldRedirect) {
+  if (forceRedirect) {
     try {
       await signInWithRedirect(auth, provider);
       return null;
@@ -159,9 +157,9 @@ export async function signInWithGoogle(forceRedirect = false): Promise<User | nu
     const processed = handleAuthDomainError(err);
     if (processed !== err) throw processed;
 
+    // If popup is blocked by browser, try redirect flow
     if (
       err?.code === 'auth/popup-blocked' ||
-      err?.code === 'auth/popup-closed-by-user' ||
       err?.code === 'auth/cancelled-popup-request'
     ) {
       try {

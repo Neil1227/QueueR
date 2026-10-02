@@ -49,9 +49,12 @@ export function useAppLock() {
     setIsBiometricSupported(bioSupported);
     setLockoutSeconds(remaining);
 
-    // Lock on launch if security is enabled
+    // Lock on launch/reopen if security is enabled and session is not active
     if (pinExists || passkeyExists) {
-      setIsLocked(true);
+      const isSessionActive = sessionStorage.getItem('qr_wallet_session_active') === 'true';
+      if (!isSessionActive) {
+        setIsLocked(true);
+      }
     }
   }, []);
 
