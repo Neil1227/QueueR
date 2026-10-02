@@ -7,6 +7,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInAnonymously,
+  sendPasswordResetEmail,
   signOut,
   User,
   Auth,
@@ -127,6 +128,11 @@ export async function signInGuest(): Promise<User> {
   if (!auth) throw new Error('Firebase Auth is not configured');
   const res = await signInAnonymously(auth);
   return res.user;
+}
+
+export async function sendResetPasswordEmail(email: string): Promise<void> {
+  if (!auth) throw new Error('Firebase Auth is not configured');
+  await sendPasswordResetEmail(auth, email);
 }
 
 export async function logOut(): Promise<void> {

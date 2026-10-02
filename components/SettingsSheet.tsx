@@ -159,14 +159,14 @@ export function SettingsSheet({
 
   const handleSavePin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPin.length < 4 || newPin.length > 6) {
-      showToast('PIN must be 4 to 6 digits');
+    if (newPin.length !== 4) {
+      showToast('PIN must be exactly 4 digits');
       return;
     }
     await onUpdatePin(newPin);
     setNewPin('');
     setShowPinInput(false);
-    showToast('App Lock PIN configured (PBKDF2 310,000 iter)');
+    showToast('4-digit Security PIN saved');
   };
 
   const handleRemovePin = async () => {
@@ -448,8 +448,8 @@ export function SettingsSheet({
                     type="password"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    maxLength={6}
-                    placeholder="Enter 4-6 digit PIN"
+                    maxLength={4}
+                    placeholder="Enter 4-digit PIN"
                     value={newPin}
                     onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
                     className="w-full bg-surface border border-line/50 rounded-xl px-3.5 py-2 text-sm text-text font-mono text-center tracking-widest outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 shadow-sm transition-all"

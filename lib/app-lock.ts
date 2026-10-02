@@ -6,6 +6,7 @@ import { bufferToBase64, base64ToBuffer, generateSalt } from './crypto';
 
 const PIN_HASH_KEY = 'qr_wallet_pin_hash_v1';
 const PIN_SALT_KEY = 'qr_wallet_pin_salt_v1';
+const PIN_EMAIL_KEY = 'qr_wallet_pin_email_v1';
 const PASSKEY_CRED_ID_KEY = 'qr_wallet_passkey_cred_id_v1';
 const AUTO_LOCK_KEY = 'qr_wallet_autolock_enabled_v1';
 const LOCK_TIMEOUT_KEY = 'qr_wallet_lock_timeout_seconds_v1'; // 0, 30, 60, 300
@@ -57,12 +58,20 @@ export function hasConfiguredPin(): boolean {
   return Boolean(localStorage.getItem(PIN_HASH_KEY));
 }
 
-export async function setPin(pin: string): Promise<void> {
+export function getPinEmail(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(PIN_EMAIL_KEY);
+}
+
+export async function setPin(pin: string, email?: string | null): Promise<void> {
   if (typeof window === 'undefined') return;
   const salt = generateSalt(16);
   const hash = await hashPin(pin, salt);
   localStorage.setItem(PIN_SALT_KEY, salt);
   localStorage.setItem(PIN_HASH_KEY, hash);
+  if (email) {
+    localStorage.setItem(PIN_EMAIL_KEY, email);
+  }
   resetLockout();
 }
 
@@ -156,6 +165,7 @@ export function removePin(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(PIN_HASH_KEY);
   localStorage.removeItem(PIN_SALT_KEY);
+  localStorage.removeItem(PIN_EMAIL_KEY);
   resetLockout();
 }
 

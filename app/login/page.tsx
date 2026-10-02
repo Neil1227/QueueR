@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/Toast';
 import { GoogleIcon } from '@/components/GoogleIcon';
+import { PinSetupModal } from '@/components/PinSetupModal';
+import { hasConfiguredPin, setPin } from '@/lib/app-lock';
 import {
   QrCode,
   Mail,
@@ -34,6 +36,7 @@ function LoginContent() {
     signInWithEmail,
     signUpWithEmail,
     signInGuest,
+    sendPasswordReset,
     signOut,
   } = useAuth();
   const { showToast } = useToast();
@@ -44,8 +47,9 @@ function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [e2eePassphrase, setE2eePassphrase] = useState('');
   const [showE2EEInput, setShowE2EEInput] = useState(false);
-  const [loadingAction, setLoadingAction] = useState<'google' | 'email' | 'guest' | 'unlock' | null>(null);
+  const [loadingAction, setLoadingAction] = useState<'google' | 'email' | 'guest' | 'unlock' | 'reset' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPinSetup, setShowPinSetup] = useState(false);
 
   const activateSession = (passphrase?: string) => {
     if (typeof window !== 'undefined') {
@@ -58,8 +62,30 @@ function LoginContent() {
     }
   };
 
+  const handlePostAuthSuccess = (emailAddress?: string | null) => {
+    if (!hasConfiguredPin()) {
+      setShowPinSetup(true);
+    } else {
+      activateSession(e2eePassphrase);
+      router.replace(redirectPath);
+    }
+  };
+
+  const handleSavePinFromSetup = async (pin: string) => {
+    await setPin(pin, user?.email || email);
+    activateSession(e2eePassphrase);
+    showToast('4-Digit Security PIN configured');
+    setShowPinSetup(false);
+    router.replace(redirectPath);
+  };
+
   const handleUnlockExistingSession = () => {
     setLoadingAction('unlock');
+    if (!hasConfiguredPin()) {
+      setShowPinSetup(true);
+      setLoadingAction(null);
+      return;
+    }
     activateSession(e2eePassphrase);
     showToast('Wallet unlocked');
     router.replace(redirectPath);
@@ -69,10 +95,9 @@ function LoginContent() {
     setLoadingAction('google');
     setErrorMessage(null);
     try {
-      await signInWithGoogle();
-      activateSession(e2eePassphrase);
+      const loggedUser = await signInWithGoogle();
       showToast('Signed in with Google');
-      router.replace(redirectPath);
+      handlePostAuthSuccess(loggedUser?.email);
     } catch (err: any) {
       const msg = err?.message || 'Google sign-in failed. Please try again.';
       setErrorMessage(msg);
@@ -90,17 +115,36 @@ function LoginContent() {
     setErrorMessage(null);
     try {
       if (authMode === 'signup') {
-        await signUpWithEmail(email, password);
-        activateSession(e2eePassphrase);
+        const newUser = await signUpWithEmail(email, password);
         showToast('Account created & signed in');
+        handlePostAuthSuccess(newUser?.email);
       } else {
-        await signInWithEmail(email, password);
-        activateSession(e2eePassphrase);
+        const loggedUser = await signInWithEmail(email, password);
         showToast('Signed in successfully');
+        handlePostAuthSuccess(loggedUser?.email);
       }
-      router.replace(redirectPath);
     } catch (err: any) {
       const msg = err?.message || 'Authentication failed. Please check your credentials.';
+      setErrorMessage(msg);
+      showToast(msg);
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setErrorMessage('Enter your email address above first to receive the reset link.');
+      showToast('Enter your email address first');
+      return;
+    }
+    setLoadingAction('reset');
+    setErrorMessage(null);
+    try {
+      await sendPasswordReset(email);
+      showToast(`Password reset link sent to ${email}`);
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to send reset email';
       setErrorMessage(msg);
       showToast(msg);
     } finally {
@@ -113,9 +157,8 @@ function LoginContent() {
     setErrorMessage(null);
     try {
       await signInGuest();
-      activateSession(e2eePassphrase);
       showToast('Continuing in Guest Mode (Offline Storage)');
-      router.replace(redirectPath);
+      handlePostAuthSuccess(null);
     } catch (err: any) {
       const msg = err?.message || 'Guest sign-in failed';
       setErrorMessage(msg);
@@ -308,9 +351,21 @@ function LoginContent() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider">
-                    Password
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider">
+                      Password
+                    </label>
+                    {authMode === 'signin' && (
+                      <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        disabled={loadingAction === 'reset'}
+                        className="text-[11px] text-accent hover:underline font-semibold cursor-pointer"
+                      >
+                        {loadingAction === 'reset' ? 'Sending...' : 'Forgot password?'}
+                      </button>
+                    )}
+                  </div>
                   <div className="relative flex items-center">
                     <Lock className="absolute left-3.5 w-4 h-4 text-muted pointer-events-none" />
                     <input
@@ -365,8 +420,8 @@ function LoginContent() {
                     {loadingAction === 'email'
                       ? 'Authenticating...'
                       : authMode === 'signup'
-                      ? 'Create Account & Unlock'
-                      : 'Sign In & Unlock'}
+                      ? 'Create Account & Continue'
+                      : 'Sign In & Continue'}
                   </button>
 
                   <button
@@ -429,6 +484,14 @@ function LoginContent() {
         </p>
         <p className="opacity-70">QueueR · Unified Payment QR Cards</p>
       </footer>
+
+      {/* 4-Digit Security PIN Setup Modal */}
+      <PinSetupModal
+        isOpen={showPinSetup}
+        userEmail={user?.email || email}
+        title="Create 4-Digit Security PIN"
+        onSavePin={handleSavePinFromSetup}
+      />
     </div>
   );
 }

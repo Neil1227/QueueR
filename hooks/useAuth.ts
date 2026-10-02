@@ -9,6 +9,7 @@ import {
   signInWithEmail,
   signUpWithEmail,
   signInGuest,
+  sendResetPasswordEmail,
   logOut,
 } from '@/lib/firebase';
 
@@ -22,6 +23,7 @@ export interface AuthState {
   signInWithEmail: (email: string, pass: string) => Promise<User>;
   signUpWithEmail: (email: string, pass: string) => Promise<User>;
   signInGuest: () => Promise<User | null>;
+  sendPasswordReset: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -131,6 +133,20 @@ export function useAuth(): AuthState {
     }
   };
 
+  const handleSendPasswordReset = async (email: string) => {
+    setError(null);
+    if (!auth) {
+      // Offline fallback simulation
+      return;
+    }
+    try {
+      await sendResetPasswordEmail(email);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to send password reset email');
+      throw err;
+    }
+  };
+
   const handleSignOut = async () => {
     setError(null);
     if (!auth) {
@@ -154,6 +170,7 @@ export function useAuth(): AuthState {
     signInWithEmail: handleSignInEmail,
     signUpWithEmail: handleSignUpEmail,
     signInGuest: handleSignInGuest,
+    sendPasswordReset: handleSendPasswordReset,
     signOut: handleSignOut,
   };
 }

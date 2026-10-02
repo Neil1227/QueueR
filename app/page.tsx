@@ -12,6 +12,8 @@ import { ReceiveSheet } from '@/components/ReceiveSheet';
 import { EditorSheet } from '@/components/EditorSheet';
 import { SettingsSheet } from '@/components/SettingsSheet';
 import { AppLockModal } from '@/components/AppLockModal';
+import { PinSetupModal } from '@/components/PinSetupModal';
+import { ForgotPinModal } from '@/components/ForgotPinModal';
 import {
   getCachedDefaultCard,
   getPreviewNumberFormat,
@@ -21,35 +23,8 @@ import {
 
 export default function HomePage() {
   const router = useRouter();
-  const [sessionReady, setSessionReady] = useState(false);
-  const { user, loading: authLoading } = useAuth();
+  const { user, isGuest, loading: authLoading, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
-
-  // Enforce login screen every time app is closed and reopened (session gate)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isSessionActive = sessionStorage.getItem('qr_wallet_session_active') === 'true';
-      if (!isSessionActive) {
-        router.replace('/login');
-      } else {
-        setSessionReady(true);
-      }
-    }
-  }, [router]);
-  const {
-    cards,
-    loading: cardsLoading,
-    defaultCard,
-    saveCard,
-    deleteCard,
-    recordUse,
-    importCards,
-    isE2EEActive,
-    isE2EEConfigured,
-    isDecrypting,
-    unlockE2EE,
-    lockE2EE,
-  } = useCards(user?.uid);
 
   const {
     isLocked,
@@ -67,6 +42,41 @@ export default function HomePage() {
     toggleBlurPrivacy,
     lockManually,
   } = useAppLock();
+
+  const [isForgotPinOpen, setIsForgotPinOpen] = useState(false);
+  const [isResetPinOpen, setIsResetPinOpen] = useState(false);
+
+  // Authentication gate: If not logged in at all, redirect to /login
+  useEffect(() => {
+    if (!authLoading && !user && !isGuest) {
+      router.replace('/login');
+    }
+  }, [user, isGuest, authLoading, router]);
+
+  // Session gate on reopen: If PIN is set and session is not active, enforce lock screen
+  useEffect(() => {
+    if (typeof window !== 'undefined' && hasPin) {
+      const isSessionActive = sessionStorage.getItem('qr_wallet_session_active') === 'true';
+      if (!isSessionActive) {
+        lockManually();
+      }
+    }
+  }, [hasPin, lockManually]);
+
+  const {
+    cards,
+    loading: cardsLoading,
+    defaultCard,
+    saveCard,
+    deleteCard,
+    recordUse,
+    importCards,
+    isE2EEActive,
+    isE2EEConfigured,
+    isDecrypting,
+    unlockE2EE,
+    lockE2EE,
+  } = useCards(user?.uid);
 
   const [receiveCard, setReceiveCard] = useState<Card | null>(null);
   const [editorCard, setEditorCard] = useState<Card | null>(null);
@@ -88,7 +98,7 @@ export default function HomePage() {
 
   // Quick Access Launch: If default card exists and no ?stack param, open receive view immediately (only when app is unlocked)
   useEffect(() => {
-    if (quickAccessHandledRef.current || isLocked) return;
+    if (quickAccessHandledRef.current || isLocked || !hasPin) return;
 
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -108,7 +118,47 @@ export default function HomePage() {
         quickAccessHandledRef.current = true;
       }
     }
-  }, [defaultCard, receiveCard, recordUse, isLocked]);
+  }, [defaultCard, receiveCard, recordUse, isLocked, hasPin]);
+
+  const handleUnlockPin = async (pin: string) => {
+    const res = await unlockWithPin(pin);
+    if (res.success && typeof window !== 'undefined') {
+      sessionStorage.setItem('qr_wallet_session_active', 'true');
+    }
+    return res;
+  };
+
+  const handleUnlockBiometrics = async () => {
+    const ok = await unlockWithBiometrics();
+    if (ok && typeof window !== 'undefined') {
+      sessionStorage.setItem('qr_wallet_session_active', 'true');
+    }
+    return ok;
+  };
+
+  const handleSaveInitialPin = async (newPin: string) => {
+    await updatePin(newPin);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('qr_wallet_session_active', 'true');
+    }
+  };
+
+  const handleSaveResetPin = async (newPin: string) => {
+    await updatePin(newPin);
+    setIsResetPinOpen(false);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('qr_wallet_session_active', 'true');
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('qr_wallet_session_active');
+      sessionStorage.removeItem('qr_wallet_e2ee_passphrase');
+    }
+    await signOut();
+    router.replace('/login');
+  };
 
   const handleOpenReceive = (card: Card) => {
     setReceiveCard(card);
@@ -150,9 +200,11 @@ export default function HomePage() {
     await importCards(importedList, mode);
   };
 
-  const isAnyOverlayActive = Boolean(receiveCard || isEditorOpen || isSettingsOpen || isLocked);
+  const isAnyOverlayActive = Boolean(
+    receiveCard || isEditorOpen || isSettingsOpen || isLocked || !hasPin || isForgotPinOpen || isResetPinOpen
+  );
 
-  if (!sessionReady) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
@@ -217,14 +269,48 @@ export default function HomePage() {
         onUpdateTheme={setTheme}
       />
 
-      {/* App Lock Overlay Screen */}
+      {/* App 4-Digit PIN Lock Overlay Screen (Every App Launch / Reopen) */}
       <AppLockModal
-        isLocked={isLocked}
+        isLocked={isLocked && hasPin}
         hasPin={hasPin}
         hasPasskey={hasPasskey}
         lockoutSeconds={lockoutSeconds}
-        onUnlockPin={unlockWithPin}
-        onUnlockBiometrics={unlockWithBiometrics}
+        userEmail={user?.email}
+        onUnlockPin={handleUnlockPin}
+        onUnlockBiometrics={handleUnlockBiometrics}
+        onForgotPin={() => setIsForgotPinOpen(true)}
+        onSignOut={handleSignOut}
+      />
+
+      {/* Initial 4-Digit PIN Setup Modal (Upon Account Creation / Google Sign-in) */}
+      {!hasPin && (user || isGuest) && (
+        <PinSetupModal
+          isOpen={!hasPin}
+          userEmail={user?.email}
+          title="Create 4-Digit Security PIN"
+          onSavePin={handleSaveInitialPin}
+        />
+      )}
+
+      {/* Forgot PIN Verification Modal */}
+      <ForgotPinModal
+        isOpen={isForgotPinOpen}
+        userEmail={user?.email}
+        onClose={() => setIsForgotPinOpen(false)}
+        onVerifiedReset={() => {
+          setIsForgotPinOpen(false);
+          setIsResetPinOpen(true);
+        }}
+        onSignOut={handleSignOut}
+      />
+
+      {/* Reset PIN Modal (After Email/Google Verification) */}
+      <PinSetupModal
+        isOpen={isResetPinOpen}
+        userEmail={user?.email}
+        title="Reset 4-Digit Security PIN"
+        onSavePin={handleSaveResetPin}
+        onCancel={() => setIsResetPinOpen(false)}
       />
     </div>
   );

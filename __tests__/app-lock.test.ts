@@ -24,9 +24,9 @@ describe('App Lock & Security', () => {
     expect(PBKDF2_PIN_ITERATIONS).toBeGreaterThanOrEqual(310000);
   });
 
-  it('sets and verifies PIN correctly', async () => {
+  it('sets and verifies PIN correctly with optional email association', async () => {
     expect(hasConfiguredPin()).toBe(false);
-    await setPin('1234');
+    await setPin('1234', 'user@gmail.com');
     expect(hasConfiguredPin()).toBe(true);
 
     const valid = await verifyPin('1234');
