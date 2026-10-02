@@ -55,40 +55,60 @@ export function useAuth(): AuthState {
       return;
     }
 
-    // Process potential redirect credential from mobile OAuth redirect
-    checkRedirectResult()
-      .then((redirectUser) => {
-        if (redirectUser) {
+    let isMounted = true;
+
+    const initAuth = async () => {
+      try {
+        const redirectUser = await checkRedirectResult();
+        if (redirectUser && isMounted) {
           setUser(redirectUser);
         }
-      })
-      .catch((err: any) => {
+      } catch (err: any) {
         console.warn('OAuth redirect check notice:', err);
         const msg = err?.message || 'Authentication redirect failed';
-        setError(msg);
-        if (msg.includes('Unauthorized Domain') || err?.code === 'auth/unauthorized-domain') {
-          setUnauthorizedDomain(getCurrentDomain());
+        if (isMounted) {
+          setError(msg);
+          if (msg.includes('Unauthorized Domain') || err?.code === 'auth/unauthorized-domain') {
+            setUnauthorizedDomain(getCurrentDomain());
+          }
         }
-      });
-
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (currentUser) => {
-        setUser(currentUser);
-        setLoading(false);
-      },
-      (err: any) => {
-        console.error('Auth state change error:', err);
-        const msg = err?.message || 'Authentication error';
-        setError(msg);
-        if (err?.code === 'auth/unauthorized-domain' || msg.includes('Unauthorized Domain')) {
-          setUnauthorizedDomain(getCurrentDomain());
-        }
-        setLoading(false);
       }
-    );
 
-    return () => unsubscribe();
+      if (!isMounted || !auth) return;
+
+      const unsubscribe = onAuthStateChanged(
+        auth,
+        (currentUser) => {
+          if (isMounted) {
+            setUser(currentUser);
+            setLoading(false);
+          }
+        },
+        (err: any) => {
+          console.error('Auth state change error:', err);
+          if (isMounted) {
+            const msg = err?.message || 'Authentication error';
+            setError(msg);
+            if (err?.code === 'auth/unauthorized-domain' || msg.includes('Unauthorized Domain')) {
+              setUnauthorizedDomain(getCurrentDomain());
+            }
+            setLoading(false);
+          }
+        }
+      );
+
+      return unsubscribe;
+    };
+
+    let cleanupFn: (() => void) | undefined;
+    initAuth().then((unsub) => {
+      cleanupFn = unsub;
+    });
+
+    return () => {
+      isMounted = false;
+      if (cleanupFn) cleanupFn();
+    };
   }, []);
 
   const handleSignInGoogle = async (forceRedirect?: boolean) => {

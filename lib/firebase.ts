@@ -157,17 +157,16 @@ export async function signInWithGoogle(forceRedirect = false): Promise<User | nu
     const processed = handleAuthDomainError(err);
     if (processed !== err) throw processed;
 
-    // If popup is blocked by browser, try redirect flow
     if (
       err?.code === 'auth/popup-blocked' ||
       err?.code === 'auth/cancelled-popup-request'
     ) {
-      try {
-        await signInWithRedirect(auth, provider);
-        return null;
-      } catch (redirectErr: any) {
-        throw handleAuthDomainError(redirectErr);
-      }
+      throw new Error(
+        'Google login popup was blocked by your browser. Please tap "Click for Full Page Redirect" below to continue.'
+      );
+    }
+    if (err?.code === 'auth/popup-closed-by-user') {
+      throw new Error('Google sign-in popup was closed before completing. Please try again.');
     }
     throw err;
   }
