@@ -35,9 +35,20 @@ export function ForgotPinModal({
     setLoading(true);
     setErrorMessage(null);
     try {
-      await signInWithGoogle();
-      onVerifiedReset();
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('qr_wallet_reset_pin_pending', 'true');
+      }
+      const res = await signInWithGoogle();
+      if (res) {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('qr_wallet_reset_pin_pending');
+        }
+        onVerifiedReset();
+      }
     } catch (err: any) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('qr_wallet_reset_pin_pending');
+      }
       setErrorMessage(err?.message || 'Google verification failed.');
     } finally {
       setLoading(false);

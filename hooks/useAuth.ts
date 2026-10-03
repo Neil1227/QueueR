@@ -6,6 +6,7 @@ import {
   auth,
   isFirebaseConfigured,
   signInWithGoogle,
+  SignInGoogleOptions,
   signInWithEmail,
   signUpWithEmail,
   signInGuest,
@@ -74,7 +75,7 @@ export interface AuthState {
   isConfigured: boolean;
   error: string | null;
   unauthorizedDomain: string | null;
-  signInWithGoogle: (forceRedirect?: boolean) => Promise<User | null>;
+  signInWithGoogle: (options?: SignInGoogleOptions) => Promise<User | null>;
   signInWithEmail: (email: string, pass: string) => Promise<User>;
   signUpWithEmail: (email: string, pass: string) => Promise<User>;
   signInGuest: () => Promise<User | null>;
@@ -200,7 +201,7 @@ export function useAuth(): AuthState {
     };
   }, []);
 
-  const handleSignInGoogle = async (forceRedirect?: boolean) => {
+  const handleSignInGoogle = async (options?: SignInGoogleOptions) => {
     setError(null);
     setUnauthorizedDomain(null);
     if (!auth) {
@@ -222,7 +223,7 @@ export function useAuth(): AuthState {
       return simulatedGoogleUser;
     }
     try {
-      const loggedUser = await signInWithGoogle(forceRedirect);
+      const loggedUser = await signInWithGoogle(options);
       if (loggedUser) {
         cacheSessionUser(loggedUser);
         setUser(loggedUser);

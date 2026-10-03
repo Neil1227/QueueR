@@ -64,6 +64,12 @@ function LoginContent() {
 
     let isMounted = true;
     (async () => {
+      // If user just completed OAuth redirect
+      if (typeof window !== 'undefined' && sessionStorage.getItem('qr_wallet_just_redirected') === 'true') {
+        sessionStorage.removeItem('qr_wallet_just_redirected');
+        showToast('Signed in with Google');
+      }
+
       let hasPin = hasConfiguredPin();
       const currentUid = user?.uid;
       if (!hasPin && currentUid && !isLocalOfflineUser(currentUid)) {
@@ -95,7 +101,7 @@ function LoginContent() {
     return () => {
       isMounted = false;
     };
-  }, [mounted, user, isGuest, authStateLoading, router, redirectPath]);
+  }, [mounted, user, isGuest, authStateLoading, router, redirectPath, showToast]);
 
   const activateSession = () => {
     if (typeof window !== 'undefined') {
@@ -150,11 +156,11 @@ function LoginContent() {
     }
   };
 
-  const handleGoogleLogin = async (forceRedirect = false) => {
-    setLoadingAction(forceRedirect ? 'google-redirect' : 'google');
+  const handleGoogleLogin = async (options?: { forceRedirect?: boolean; preferPopup?: boolean } | boolean) => {
+    setLoadingAction('google');
     setErrorMessage(null);
     try {
-      const loggedUser = await signInWithGoogle(forceRedirect);
+      const loggedUser = await signInWithGoogle(options);
       if (loggedUser) {
         showToast('Signed in with Google');
         await handlePostAuthSuccess(loggedUser.email, loggedUser.uid);
@@ -163,7 +169,6 @@ function LoginContent() {
       const msg = err?.message || 'Google sign-in failed. Please try again.';
       setErrorMessage(msg);
       showToast(msg);
-    } finally {
       setLoadingAction(null);
     }
   };
@@ -211,11 +216,15 @@ function LoginContent() {
   };
 
   const activeDomain = unauthorizedDomain || (typeof window !== 'undefined' ? window.location.hostname : '');
+  const isRedirectPending = mounted && typeof window !== 'undefined' && sessionStorage.getItem('qr_wallet_auth_redirect_pending') === 'true';
 
-  if (!mounted || ((user || isGuest) && hasConfiguredPin() && !showPinSetup)) {
+  if (!mounted || isRedirectPending || (authStateLoading && !user && !isGuest) || ((user || isGuest) && hasConfiguredPin() && !showPinSetup)) {
     return (
-      <div className="min-h-screen bg-bg flex items-center justify-center">
+      <div className="min-h-screen bg-bg flex flex-col items-center justify-center gap-3">
         <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+        {isRedirectPending && (
+          <p className="text-xs font-semibold text-muted animate-pulse">Completing Google sign-in...</p>
+        )}
       </div>
     );
   }
@@ -395,12 +404,12 @@ function LoginContent() {
               type="button"
               id="google-login-button"
               disabled={Boolean(loadingAction)}
-              onClick={() => handleGoogleLogin(false)}
+              onClick={() => handleGoogleLogin()}
               className="w-full py-3.5 px-4 rounded-2xl bg-surface hover:bg-surface/80 text-text font-bold text-sm flex items-center justify-center gap-3 shadow-sm border border-line/60 hover:border-accent active:scale-[0.98] transition-all cursor-pointer group disabled:opacity-50"
             >
               <GoogleIcon className="w-5 h-5 shrink-0 transition-transform group-hover:scale-110" />
               <span>
-                {loadingAction === 'google' || loadingAction === 'google-redirect'
+                {loadingAction === 'google'
                   ? 'Connecting to Google...'
                   : 'Continue with Google'}
               </span>
@@ -408,12 +417,12 @@ function LoginContent() {
 
             <button
               type="button"
-              onClick={() => handleGoogleLogin(true)}
+              onClick={() => handleGoogleLogin({ forceRedirect: true })}
               disabled={Boolean(loadingAction)}
               className="w-full text-center text-[11px] text-muted hover:text-accent font-medium py-0.5 cursor-pointer flex items-center justify-center gap-1 opacity-70 hover:opacity-100 transition-opacity"
             >
               <RefreshCw className="w-3 h-3" />
-              <span>On mobile or popup blocked? Click for Full Page Redirect</span>
+              <span>Standard 1-Tap OAuth Redirect</span>
             </button>
           </div>
 

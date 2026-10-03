@@ -50,6 +50,10 @@ export default function HomePage() {
 
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== 'undefined' && sessionStorage.getItem('qr_wallet_reset_pin_pending') === 'true') {
+      sessionStorage.removeItem('qr_wallet_reset_pin_pending');
+      setIsResetPinOpen(true);
+    }
   }, []);
 
   // Authentication gate: If not logged in at all, redirect to /login smoothly

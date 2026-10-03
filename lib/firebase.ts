@@ -140,6 +140,9 @@ export async function checkRedirectResult(): Promise<User | null> {
     const result = await getRedirectResult(auth);
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('qr_wallet_auth_redirect_pending');
+      if (result?.user) {
+        sessionStorage.setItem('qr_wallet_just_redirected', 'true');
+      }
     }
     return result?.user ?? null;
   } catch (err: any) {
@@ -150,14 +153,22 @@ export async function checkRedirectResult(): Promise<User | null> {
   }
 }
 
-export async function signInWithGoogle(forceRedirect = false): Promise<User | null> {
+export type SignInGoogleOptions = { forceRedirect?: boolean; preferPopup?: boolean } | boolean;
+
+export async function signInWithGoogle(options?: SignInGoogleOptions): Promise<User | null> {
   if (!auth) throw new Error('Firebase Auth is not configured');
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
 
-  // On standard mobile browser outside PWA standalone, popup windows are blocked or lose window.opener.
-  // Using signInWithRedirect provides a reliable 1-tap sign-in experience.
-  const shouldUseRedirect = forceRedirect || (isMobileBrowser() && !isStandalone());
+  // Handle boolean backwards-compatibility for existing callers: signInWithGoogle(forceRedirect)
+  const forceRedirect = typeof options === 'boolean' ? options : options?.forceRedirect ?? false;
+  const preferPopup = typeof options === 'object' ? options?.preferPopup ?? false : false;
+
+  // Modern browsers (Chrome 115+, Safari, Firefox) enforce strict Cross-Origin Opener Policies (COOP)
+  // and partitioned cookie isolation which severs window.opener when authenticating via popups.
+  // On standard browser tabs (both desktop and mobile), signInWithRedirect is the resilient 100% reliable flow.
+  // We only attempt popup if explicitly requested or in standalone PWA mode.
+  const shouldUseRedirect = forceRedirect || (!preferPopup && !isStandalone());
 
   if (shouldUseRedirect) {
     try {
@@ -174,21 +185,38 @@ export async function signInWithGoogle(forceRedirect = false): Promise<User | nu
     }
   }
 
-  // Desktop or PWA Standalone: Attempt popup first
+  // Standalone PWA or callers requesting popup: Attempt popup with strict timeout fallback
+  // to prevent indefinite promise hangs caused by severed window.opener communication.
+  const POPUP_TIMEOUT_MS = 6000;
+  let timeoutId: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const err: any = new Error('Google popup communication timed out (COOP/context isolation). Falling back to full-page redirect.');
+      err.code = 'auth/popup-timeout';
+      reject(err);
+    }, POPUP_TIMEOUT_MS);
+  });
+
   try {
-    const result = await signInWithPopup(auth, provider);
+    const result = await Promise.race([
+      signInWithPopup(auth, provider),
+      timeoutPromise,
+    ]);
+    clearTimeout(timeoutId);
     return result.user;
   } catch (err: any) {
+    clearTimeout(timeoutId);
     const processed = handleAuthDomainError(err);
     if (processed !== err) throw processed;
 
-    // If popup was blocked or unavailable in the current browser, seamlessly fall back to redirect
+    // If popup timed out, was blocked, was cancelled, or is unsupported, seamlessly fall back to full-page redirect
     if (
+      err?.code === 'auth/popup-timeout' ||
       err?.code === 'auth/popup-blocked' ||
       err?.code === 'auth/cancelled-popup-request' ||
       err?.code === 'auth/operation-not-supported-in-this-environment'
     ) {
-      console.warn('Popup blocked/unsupported, falling back to full-page redirect:', err?.code);
+      console.warn('Popup issue detected (' + err?.code + '), seamlessly falling back to full-page redirect...');
       try {
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('qr_wallet_auth_redirect_pending', 'true');
