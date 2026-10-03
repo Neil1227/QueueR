@@ -78,7 +78,6 @@ export function BankLogo({
           onError={handleError}
           className="w-full h-full object-contain p-[2px] rounded-full transition-opacity duration-200"
           loading="lazy"
-          crossOrigin="anonymous"
         />
       ) : (
         <span
