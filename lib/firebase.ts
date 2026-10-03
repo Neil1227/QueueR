@@ -34,7 +34,7 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { Card, CardSchema, UserMeta, UserMetaSchema } from './schema';
-import { setCachedCards, getCachedCards } from './cards';
+import { setCachedCards, getCachedCards, setUserSalt } from './cards';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyACicWbUFCC8ncz6t8Ga0eDmDsN1vbwWys',
@@ -440,7 +440,7 @@ export function subscribeToUserCards(
       });
 
       // Update local storage cache
-      setCachedCards(cards, userId);
+      // Raw Firestore cards are decrypted and cached in useCards
       onCards(cards, snapshot.metadata.fromCache);
     },
     (err) => {
@@ -544,13 +544,24 @@ export async function recordCardUse(userId: string, cardId: string): Promise<voi
 export async function getUserMeta(userId: string): Promise<UserMeta | null> {
   if (!db || isLocalOfflineUser(userId)) return null;
   try {
+    if (auth && !auth.currentUser) {
+      try {
+        await Promise.race([
+          auth.authStateReady(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+        ]);
+      } catch {}
+    }
     const metaRef = doc(db, 'users', userId, 'meta', 'settings');
     const snap = await Promise.race([
       getDoc(metaRef),
-      new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
+      new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
     ]);
     if (!snap || !snap.exists()) return null;
     const parsed = UserMetaSchema.safeParse(snap.data());
+    if (parsed.success && parsed.data.salt) {
+      setUserSalt(userId, parsed.data.salt);
+    }
     return parsed.success ? parsed.data : null;
   } catch (err) {
     console.warn('getUserMeta notice:', err);
@@ -562,7 +573,18 @@ export async function getUserMeta(userId: string): Promise<UserMeta | null> {
  * Save user metadata.
  */
 export async function saveUserMeta(userId: string, meta: UserMeta): Promise<void> {
+  if (meta.salt) {
+    setUserSalt(userId, meta.salt);
+  }
   if (!db || isLocalOfflineUser(userId)) return;
+  if (auth && !auth.currentUser) {
+    try {
+      await Promise.race([
+        auth.authStateReady(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('auth timeout')), 3000)),
+      ]);
+    } catch {}
+  }
   const validated = UserMetaSchema.parse(meta);
   const metaRef = doc(db, 'users', userId, 'meta', 'settings');
   await setDoc(metaRef, cleanFirestoreData(validated), { merge: true });

@@ -9,6 +9,9 @@ import {
   getCachedCards,
   setCachedCards,
   clearCachedCards,
+  getUserSalt,
+  setUserSalt,
+  clearUserSalt,
 } from '../lib/cards';
 import { Card } from '../lib/schema';
 
@@ -111,6 +114,8 @@ describe('Cards utilities', () => {
         color: '#007DFE',
         holder: 'User A',
         number: '1111',
+        label: '',
+        category: 'personal',
         isDefault: false,
         useCount: 10,
         lastUsedAt: 100,
@@ -126,6 +131,8 @@ describe('Cards utilities', () => {
         color: '#1FBF6B',
         holder: 'User B',
         number: '2222',
+        label: '',
+        category: 'personal',
         isDefault: true,
         useCount: 2,
         lastUsedAt: 50,
@@ -141,6 +148,8 @@ describe('Cards utilities', () => {
         color: '#B3151B',
         holder: 'User C',
         number: '3333',
+        label: '',
+        category: 'personal',
         isDefault: false,
         useCount: 20,
         lastUsedAt: 200,
@@ -193,6 +202,9 @@ describe('Cards utilities', () => {
           color: '#007DFE',
           holder: 'User 1',
           number: '0917 111 2222',
+          label: '',
+          category: 'personal',
+          payload: 'test-payload',
           isDefault: true,
           useCount: 0,
           lastUsedAt: 0,
@@ -208,6 +220,15 @@ describe('Cards utilities', () => {
 
       clearCachedCards('user_abc_123');
       expect(getCachedCards('user_abc_123')).toHaveLength(0);
+    });
+
+    it('persists and isolates user encryption salt locally', () => {
+      setUserSalt('user_123', 'salt_abc_xyz');
+      expect(getUserSalt('user_123')).toBe('salt_abc_xyz');
+      expect(getUserSalt('user_456')).toBeNull();
+
+      clearUserSalt('user_123');
+      expect(getUserSalt('user_123')).toBeNull();
     });
   });
 });

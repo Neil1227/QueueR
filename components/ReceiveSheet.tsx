@@ -393,6 +393,11 @@ export function ReceiveSheet({ card, isOpen, onClose, onEdit }: ReceiveSheetProp
             className={`w-full h-full object-contain [image-rendering:pixelated] transition-all duration-300 ${isQrBlurred ? 'blur-lg select-none pointer-events-none' : ''
               }`}
           />
+        ) : card.payloadEnc ? (
+          <div className="flex flex-col items-center justify-center text-center p-4">
+            <div className="w-6 h-6 border-2 border-[#1D1D1F] border-t-transparent rounded-full animate-spin mb-2" />
+            <div className="text-gray-500 text-xs font-medium">Decrypting QR code...</div>
+          </div>
         ) : (
           <div className="text-gray-500 text-sm font-medium">No QR Available</div>
         )}

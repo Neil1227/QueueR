@@ -15,6 +15,8 @@ import {
   getCachedCards,
   setCachedCards,
   getCachedDefaultCard,
+  getUserSalt,
+  setUserSalt,
 } from '@/lib/cards';
 import { deriveKey, deriveUserKey, encryptCardForStorage, decryptCardFromStorage, generateSalt } from '@/lib/crypto';
 
@@ -22,39 +24,78 @@ const CARD_LOAD_TIMEOUT_MS = 2500;
 
 export function useCards(userId?: string | null) {
   const [cards, setCards] = useState<Card[]>([]);
+  const cardsRef = useRef<Card[]>(cards);
+  cardsRef.current = cards;
+
   const [loading, setLoading] = useState(true);
   const [e2eeKey, setE2eeKey] = useState<CryptoKey | null>(null);
   const e2eeKeyRef = useRef<CryptoKey | null>(e2eeKey);
   e2eeKeyRef.current = e2eeKey;
+
   const [userMeta, setUserMeta] = useState<UserMeta | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(false);
+
+  // Helper to derive and set encryption key given userId and salt
+  const initKeyForUser = useCallback(async (uid: string, salt: string): Promise<CryptoKey | null> => {
+    try {
+      const savedPassphrase = typeof window !== 'undefined'
+        ? sessionStorage.getItem('qr_wallet_e2ee_passphrase') || undefined
+        : undefined;
+      const key = await deriveUserKey(uid, salt, savedPassphrase);
+      setE2eeKey(key);
+      e2eeKeyRef.current = key;
+      return key;
+    } catch (err) {
+      console.warn('Error deriving user key:', err);
+      return null;
+    }
+  }, []);
 
   // Initialize or derive encryption key automatically for user
   useEffect(() => {
     if (!userId) {
       setE2eeKey(null);
+      e2eeKeyRef.current = null;
       return;
     }
 
     let isMounted = true;
     (async () => {
+      // 1. Immediately check cached salt from localStorage for instant, synchronous-speed key derivation
+      const cachedSalt = getUserSalt(userId);
+      let activeSalt = cachedSalt;
+      if (cachedSalt) {
+        await initKeyForUser(userId, cachedSalt);
+      }
+
+      // 2. Query Firestore user meta to sync or initialize
       try {
         let meta = await getUserMeta(userId);
-        let salt = meta?.salt;
-        if (!salt) {
-          salt = generateSalt();
-          meta = { e2eeEnabled: true, salt, updatedAt: Date.now() };
-          await saveUserMeta(userId, meta);
-        }
-        if (isMounted) setUserMeta(meta);
+        if (!isMounted) return;
 
-        const savedPassphrase = typeof window !== 'undefined'
-          ? sessionStorage.getItem('qr_wallet_e2ee_passphrase') || undefined
-          : undefined;
-
-        const key = await deriveUserKey(userId, salt, savedPassphrase);
-        if (isMounted) {
-          setE2eeKey(key);
+        if (meta?.salt) {
+          if (meta.salt !== activeSalt) {
+            setUserSalt(userId, meta.salt);
+            activeSalt = meta.salt;
+            await initKeyForUser(userId, meta.salt);
+          }
+          setUserMeta(meta);
+        } else if (!activeSalt) {
+          // Brand new user: neither local nor remote has a salt
+          const newSalt = generateSalt();
+          setUserSalt(userId, newSalt);
+          activeSalt = newSalt;
+          const newMeta: UserMeta = { e2eeEnabled: true, salt: newSalt, updatedAt: Date.now() };
+          await saveUserMeta(userId, newMeta);
+          if (isMounted) {
+            setUserMeta(newMeta);
+            await initKeyForUser(userId, newSalt);
+          }
+        } else {
+          // Local salt exists, sync it to Firestore
+          const newMeta: UserMeta = { e2eeEnabled: true, salt: activeSalt, updatedAt: Date.now() };
+          await saveUserMeta(userId, newMeta);
+          if (isMounted) setUserMeta(newMeta);
         }
       } catch (err) {
         console.warn('User encryption key notice:', err);
@@ -64,7 +105,7 @@ export function useCards(userId?: string | null) {
     return () => {
       isMounted = false;
     };
-  }, [userId]);
+  }, [userId, initKeyForUser]);
 
   // Subscribe to cards from Firestore & load local cache
   useEffect(() => {
@@ -93,27 +134,48 @@ export function useCards(userId?: string | null) {
       userId,
       async (newCards, fromCache = false) => {
         if (!isCurrentSubscription) return;
-        // Firestore may first emit an empty local snapshot while it is still
-        // fetching the user's server data. Keep the skeleton up for that brief
-        // gap so the empty state does not flash before existing cards arrive.
         if (newCards.length > 0 || !fromCache) {
           clearTimeout(safetyTimer);
         }
-        let processedCards = newCards;
-        const currentKey = e2eeKeyRef.current;
 
-        // If we have encryption key, decrypt cards
+        // If we don't have encryption key yet in ref, attempt quick derivation from local salt
+        let currentKey = e2eeKeyRef.current;
+        if (!currentKey && userId) {
+          const localSalt = getUserSalt(userId);
+          if (localSalt) {
+            currentKey = await initKeyForUser(userId, localSalt);
+          }
+        }
+
+        let processedCards = newCards;
         if (currentKey) {
           processedCards = await Promise.all(
             newCards.map(async (c) => {
               try {
-                return await decryptCardFromStorage(c, currentKey);
+                return await decryptCardFromStorage(c, currentKey!);
               } catch {
                 return c;
               }
             })
           );
         }
+
+        // Merge with existing decrypted data to prevent blank fields from stomping decrypted cards
+        const currentCards = cardsRef.current;
+        const localCached = getCachedCards(userId);
+        processedCards = processedCards.map((c) => {
+          const existing =
+            currentCards.find((ec) => ec.id === c.id) ||
+            localCached.find((lc) => lc.id === c.id);
+          if (!existing) return c;
+          return {
+            ...c,
+            holder: c.holder || existing.holder || '',
+            number: c.number || existing.number || '',
+            payload: c.payload || existing.payload || null,
+            imgB64: c.imgB64 || existing.imgB64 || null,
+          };
+        });
 
         if (!isCurrentSubscription) return;
         const sorted = sortCards(processedCards);
@@ -135,15 +197,16 @@ export function useCards(userId?: string | null) {
       clearTimeout(safetyTimer);
       unsubscribe();
     };
-  }, [userId]);
+  }, [userId, initKeyForUser]);
 
   // Reactive decryption when e2eeKey is derived without resetting loading state
   useEffect(() => {
     if (!e2eeKey || cards.length === 0) return;
-    const hasUndecryptedFields = cards.some((card) =>
-      (card.holderEnc && !card.holder) ||
-      (card.numberEnc && !card.number) ||
-      (card.payloadEnc && !card.payload)
+    const hasUndecryptedFields = cards.some(
+      (card) =>
+        (card.holderEnc && !card.holder) ||
+        (card.numberEnc && !card.number) ||
+        (card.payloadEnc && !card.payload)
     );
     if (!hasUndecryptedFields) return;
 
@@ -158,20 +221,111 @@ export function useCards(userId?: string | null) {
           }
         })
       );
-      const changed = decrypted.some((card, index) =>
-        card.holder !== cards[index]?.holder ||
-        card.number !== cards[index]?.number ||
-        card.payload !== cards[index]?.payload
+      const changed = decrypted.some(
+        (card, index) =>
+          card.holder !== cards[index]?.holder ||
+          card.number !== cards[index]?.number ||
+          card.payload !== cards[index]?.payload
       );
       if (isMounted && changed) {
-        setCards(sortCards(decrypted));
-        setCachedCards(decrypted, userId);
+        const sorted = sortCards(decrypted);
+        setCards(sorted);
+        setCachedCards(sorted, userId);
       }
     })();
     return () => {
       isMounted = false;
     };
   }, [e2eeKey, cards, userId]);
+
+  // App resume/foreground listener: re-check decryption on visibility change or window focus
+  useEffect(() => {
+    if (typeof window === 'undefined' || !userId) return;
+
+    const handleResume = async () => {
+      if (document.visibilityState === 'visible') {
+        const currentCards = cardsRef.current;
+        const hasUndecrypted = currentCards.some(
+          (c) =>
+            (c.holderEnc && !c.holder) ||
+            (c.numberEnc && !c.number) ||
+            (c.payloadEnc && !c.payload)
+        );
+
+        if (hasUndecrypted) {
+          let key = e2eeKeyRef.current;
+          if (!key) {
+            const salt = getUserSalt(userId) || userMeta?.salt;
+            if (salt) {
+              key = await initKeyForUser(userId, salt);
+            }
+          }
+          if (key) {
+            const decrypted = await Promise.all(
+              currentCards.map(async (c) => {
+                try {
+                  return await decryptCardFromStorage(c, key!);
+                } catch {
+                  return c;
+                }
+              })
+            );
+            const sorted = sortCards(decrypted);
+            setCards(sorted);
+            setCachedCards(sorted, userId);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleResume);
+    window.addEventListener('focus', handleResume);
+    return () => {
+      document.removeEventListener('visibilitychange', handleResume);
+      window.removeEventListener('focus', handleResume);
+    };
+  }, [userId, userMeta, initKeyForUser]);
+
+  // Pull-to-refresh or manual card refresh handler
+  const refreshCards = useCallback(async () => {
+    if (!userId) return;
+    try {
+      let key = e2eeKeyRef.current;
+      if (!key) {
+        const salt = getUserSalt(userId);
+        if (salt) {
+          key = await initKeyForUser(userId, salt);
+        }
+      }
+      const meta = await getUserMeta(userId);
+      if (meta?.salt) {
+        setUserMeta(meta);
+        setUserSalt(userId, meta.salt);
+        if (!key || meta.salt !== getUserSalt(userId)) {
+          key = await initKeyForUser(userId, meta.salt);
+        }
+      }
+
+      // Re-decrypt any cards currently loaded
+      const current = cardsRef.current;
+      if (key && current.length > 0) {
+        const decrypted = await Promise.all(
+          current.map(async (c) => {
+            try {
+              return await decryptCardFromStorage(c, key!);
+            } catch {
+              return c;
+            }
+          })
+        );
+        const sorted = sortCards(decrypted);
+        setCards(sorted);
+        setCachedCards(sorted, userId);
+      }
+    } catch (err) {
+      console.warn('Refresh cards notice:', err);
+    }
+  }, [userId, initKeyForUser]);
 
   // Unlock E2EE with custom passphrase
   const unlockE2EE = useCallback(
@@ -183,9 +337,10 @@ export function useCards(userId?: string | null) {
         if (!meta) {
           meta = await getUserMeta(userId);
         }
-        let salt = meta?.salt;
+        let salt = meta?.salt || getUserSalt(userId);
         if (!salt) {
           salt = generateSalt();
+          setUserSalt(userId, salt);
           const newMeta: UserMeta = { e2eeEnabled: true, salt, updatedAt: Date.now() };
           await saveUserMeta(userId, newMeta);
           setUserMeta(newMeta);
@@ -193,6 +348,7 @@ export function useCards(userId?: string | null) {
 
         const key = await deriveUserKey(userId, salt, passphrase);
         setE2eeKey(key);
+        e2eeKeyRef.current = key;
         if (typeof window !== 'undefined') {
           if (passphrase) {
             sessionStorage.setItem('qr_wallet_e2ee_passphrase', passphrase);
@@ -214,7 +370,7 @@ export function useCards(userId?: string | null) {
 
         const sorted = sortCards(decryptedList);
         setCards(sorted);
-        setCachedCards(sorted);
+        setCachedCards(sorted, userId);
         setIsDecrypting(false);
         return true;
       } catch (err) {
@@ -231,11 +387,14 @@ export function useCards(userId?: string | null) {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('qr_wallet_e2ee_passphrase');
     }
-    if (userId && userMeta?.salt) {
-      const defaultKey = await deriveUserKey(userId, userMeta.salt);
+    const salt = userMeta?.salt || (userId ? getUserSalt(userId) : null);
+    if (userId && salt) {
+      const defaultKey = await deriveUserKey(userId, salt);
       setE2eeKey(defaultKey);
+      e2eeKeyRef.current = defaultKey;
     } else {
       setE2eeKey(null);
+      e2eeKeyRef.current = null;
     }
   }, [userId, userMeta]);
 
@@ -285,12 +444,18 @@ export function useCards(userId?: string | null) {
 
       if (userId) {
         // Automatically encrypt before saving to Firestore
-        const activeKey = e2eeKey || (userMeta?.salt ? await deriveUserKey(userId, userMeta.salt) : null);
+        let activeKey = e2eeKeyRef.current;
+        if (!activeKey) {
+          const salt = getUserSalt(userId) || userMeta?.salt;
+          if (salt) {
+            activeKey = await deriveUserKey(userId, salt);
+          }
+        }
         const cardToSave = activeKey ? await encryptCardForStorage(plainCard, activeKey) : plainCard;
         await saveUserCard(userId, cardToSave, previousDefault);
       }
     },
-    [cards, e2eeKey, userId, userMeta]
+    [cards, userId, userMeta]
   );
 
   // Delete card
@@ -345,14 +510,20 @@ export function useCards(userId?: string | null) {
       setCachedCards(sorted, userId);
 
       if (userId) {
-        const activeKey = e2eeKey || (userMeta?.salt ? await deriveUserKey(userId, userMeta.salt) : null);
+        let activeKey = e2eeKeyRef.current;
+        if (!activeKey) {
+          const salt = getUserSalt(userId) || userMeta?.salt;
+          if (salt) {
+            activeKey = await deriveUserKey(userId, salt);
+          }
+        }
         for (const c of targetCards) {
           const cardToSave = activeKey ? await encryptCardForStorage(c, activeKey) : c;
           await saveUserCard(userId, cardToSave);
         }
       }
     },
-    [cards, userId, e2eeKey, userMeta]
+    [cards, userId, userMeta]
   );
 
   return {
@@ -368,5 +539,6 @@ export function useCards(userId?: string | null) {
     isDecrypting,
     unlockE2EE,
     lockE2EE,
+    refreshCards,
   };
 }

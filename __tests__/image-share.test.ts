@@ -10,6 +10,7 @@ describe('Image Share Engine', () => {
     holder: 'Juan Dela Cruz',
     number: '0917 123 4567',
     label: 'Personal',
+    category: 'personal',
     payload: 'https://qr.gcash.com/pay-me',
     isDefault: true,
     useCount: 1,

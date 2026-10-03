@@ -86,6 +86,7 @@ export default function HomePage() {
     isDecrypting,
     unlockE2EE,
     lockE2EE,
+    refreshCards,
   } = useCards(user?.uid);
 
   const [receiveCard, setReceiveCard] = useState<Card | null>(null);
@@ -204,7 +205,7 @@ export default function HomePage() {
   return (
     <div className="relative min-h-screen bg-bg">
       {/* Mobile Scroll-Down Pull To Refresh Container */}
-      <PullToRefresh disabled={isAnyOverlayActive}>
+      <PullToRefresh disabled={isAnyOverlayActive} onRefresh={refreshCards}>
         {/* Main Card Stack */}
         <CardStack
           cards={cards}
@@ -218,7 +219,7 @@ export default function HomePage() {
 
       {/* Receive View Sheet */}
       <ReceiveSheet
-        card={receiveCard}
+        card={(receiveCard ? cards.find((c) => c.id === receiveCard.id) : null) || receiveCard}
         isOpen={Boolean(receiveCard)}
         onClose={handleCloseReceive}
         onEdit={handleEditFromReceive}

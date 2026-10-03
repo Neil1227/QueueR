@@ -15,8 +15,11 @@ describe('ReceiveSheet & QR Ph Flow Unit Tests', () => {
     payload:
       '00020101021126510014ph.ppmi.p2pqr0111GCASHXXXXXX02159999999999999995204601653036085802PH5911JUAN D CRUZ6006MANILA6304A1B2',
     useCount: 0,
+    lastUsedAt: 0,
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    category: 'personal',
+    v: 1,
   };
 
   it('correctly calculates dynamic amount QR Ph payload', () => {

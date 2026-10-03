@@ -13,6 +13,7 @@ describe('Card Categories & Deck Filtering Test Suite', () => {
     payload: '00020101021126510014ph.ppmi.p2pqr0111GCASHXXXXXX5204601653036085802PH5911JUAN D CRUZ6006MANILA6304A1B2',
     isDefault: false,
     useCount: 0,
+    lastUsedAt: 0,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     v: 1 as const,

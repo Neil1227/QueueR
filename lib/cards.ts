@@ -228,6 +228,7 @@ export function clearCachedCards(userId?: string | null): void {
     if (userId) {
       localStorage.removeItem(`${LOCAL_CACHE_ALL_KEY}_${userId}`);
       localStorage.removeItem(`${LOCAL_CACHE_DEFAULT_KEY}_${userId}`);
+      clearUserSalt(userId);
     }
     localStorage.removeItem(LOCAL_CACHE_ALL_KEY);
     localStorage.removeItem(LOCAL_CACHE_DEFAULT_KEY);
@@ -236,11 +237,49 @@ export function clearCachedCards(userId?: string | null): void {
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && (k.startsWith('qr_wallet_cards_cache') || k.startsWith('qr_wallet_default_cache') || k.startsWith('qr_wallet_default_card_cache'))) {
+      if (
+        k &&
+        (k.startsWith('qr_wallet_cards_cache') ||
+          k.startsWith('qr_wallet_default_cache') ||
+          k.startsWith('qr_wallet_default_card_cache') ||
+          k.startsWith('qr_wallet_salt'))
+      ) {
         keysToRemove.push(k);
       }
     }
     keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * User salt storage for immediate client-side key derivation even before Firebase connects.
+ */
+export const LOCAL_USER_SALT_KEY = 'qr_wallet_salt';
+
+export function getUserSalt(userId?: string | null): string | null {
+  if (typeof window === 'undefined' || !userId) return null;
+  try {
+    return localStorage.getItem(`${LOCAL_USER_SALT_KEY}_${userId}`);
+  } catch {
+    return null;
+  }
+}
+
+export function setUserSalt(userId: string, salt: string): void {
+  if (typeof window === 'undefined' || !userId || !salt) return;
+  try {
+    localStorage.setItem(`${LOCAL_USER_SALT_KEY}_${userId}`, salt);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function clearUserSalt(userId: string): void {
+  if (typeof window === 'undefined' || !userId) return;
+  try {
+    localStorage.removeItem(`${LOCAL_USER_SALT_KEY}_${userId}`);
   } catch {
     // Ignore storage errors
   }
