@@ -85,10 +85,12 @@ export function useCards(userId?: string | null) {
     const safetyTimer = setTimeout(() => {
       setLoading(false);
     }, CARD_LOAD_TIMEOUT_MS);
+    let isCurrentSubscription = true;
 
     const unsubscribe = subscribeToUserCards(
       userId,
       async (newCards, fromCache = false) => {
+        if (!isCurrentSubscription) return;
         // Firestore may first emit an empty local snapshot while it is still
         // fetching the user's server data. Keep the skeleton up for that brief
         // gap so the empty state does not flash before existing cards arrive.
@@ -110,6 +112,7 @@ export function useCards(userId?: string | null) {
           );
         }
 
+        if (!isCurrentSubscription) return;
         const sorted = sortCards(processedCards);
         setCards(sorted);
         setCachedCards(sorted, userId);
@@ -118,16 +121,18 @@ export function useCards(userId?: string | null) {
         }
       },
       () => {
+        if (!isCurrentSubscription) return;
         clearTimeout(safetyTimer);
         setLoading(false);
       }
     );
 
     return () => {
+      isCurrentSubscription = false;
       clearTimeout(safetyTimer);
       unsubscribe();
     };
-  }, [userId]);
+  }, [userId, e2eeKey]);
 
   // Reactive decryption when e2eeKey is derived without resetting loading state
   useEffect(() => {
