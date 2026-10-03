@@ -238,7 +238,7 @@ function LoginContent() {
           <img
             src="/QueueRLogo.png"
             alt="QueueR"
-            className="w-8 h-8 rounded-xl object-cover shadow-sm border border-line/30"
+            className="w-8 h-8 rounded-xl object-cover shadow-xs"
           />
           <span className="text-sm font-bold tracking-tight text-text">QueueR</span>
         </div>
@@ -253,13 +253,11 @@ function LoginContent() {
       <main className="my-auto py-6 space-y-5">
         {/* Brand Logo & Title */}
         <div className="text-center space-y-2">
-          <div className="w-20 h-20 rounded-3xl overflow-hidden p-1.5 bg-surface shadow-[0_8px_30px_rgba(0,122,255,0.3)] mx-auto flex items-center justify-center border border-line/40">
-            <img
-              src="/QueueRLogo.png"
-              alt="QueueR Logo"
-              className="w-full h-full object-cover rounded-[20px]"
-            />
-          </div>
+          <img
+            src="/QueueRLogo.png"
+            alt="QueueR Logo"
+            className="w-20 h-20 rounded-3xl object-cover shadow-[0_8px_30px_rgba(0,122,255,0.25)] mx-auto"
+          />
 
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-text">
@@ -470,12 +468,18 @@ function LoginContent() {
       </main>
 
       {/* Footer */}
-      <footer className="text-center text-[11px] text-muted space-y-1 pt-4 border-t border-line/20">
-        <p className="flex items-center justify-center gap-1 font-medium">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 inline" />
+      <footer className="text-center text-[10px] sm:text-[11px] text-muted space-y-1 sm:space-y-1.5 pt-3 sm:pt-4 border-t border-line/20">
+        <p className="flex items-center justify-center gap-1 font-medium text-text/80">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 inline shrink-0" />
           <span>End-to-End Encrypted Cloud Storage</span>
         </p>
-        <p className="opacity-70">QueueR · Unified Payment QR Cards</p>
+        <p className="opacity-80 max-w-xs mx-auto leading-normal">
+          By signing in or continuing as guest, you agree to our{' '}
+          <Link href="/terms" className="text-accent hover:underline font-semibold">
+            Terms & Conditions
+          </Link>
+          .
+        </p>
       </footer>
 
       {/* 4-Digit Security PIN Setup Modal */}

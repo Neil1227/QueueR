@@ -100,17 +100,17 @@ export function AppLockModal({
     >
       <div className="w-full max-w-xs space-y-5">
         {/* Official QueueR Logo / Lock Icon */}
-        <div className="w-20 h-20 rounded-3xl overflow-hidden p-1.5 bg-surface shadow-[0_8px_30px_rgba(0,122,255,0.25)] mx-auto flex items-center justify-center border border-line/40">
-          {isLockedOut ? (
+        {isLockedOut ? (
+          <div className="w-20 h-20 rounded-3xl bg-surface shadow-[0_8px_30px_rgba(239,68,68,0.25)] mx-auto flex items-center justify-center">
             <ShieldAlert className="w-10 h-10 text-red-500 animate-pulse" />
-          ) : (
-            <img
-              src="/QueueRLogo.png"
-              alt="QueueR Logo"
-              className="w-full h-full object-cover rounded-[20px]"
-            />
-          )}
-        </div>
+          </div>
+        ) : (
+          <img
+            src="/QueueRLogo.png"
+            alt="QueueR Logo"
+            className="w-20 h-20 rounded-3xl object-cover shadow-[0_8px_30px_rgba(0,122,255,0.25)] mx-auto"
+          />
+        )}
 
         <div className="space-y-1.5">
           <h2 className="text-2xl font-black tracking-tight text-text">QueueR Locked</h2>

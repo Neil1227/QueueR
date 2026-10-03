@@ -67,13 +67,11 @@ export function PinSetupModal({
     >
       <div className="w-full max-w-xs space-y-6">
         {/* Official QueueR Logo */}
-        <div className="w-20 h-20 rounded-3xl overflow-hidden p-1.5 bg-surface shadow-[0_8px_30px_rgba(0,122,255,0.25)] mx-auto flex items-center justify-center border border-line/40">
-          <img
-            src="/QueueRLogo.png"
-            alt="QueueR Logo"
-            className="w-full h-full object-cover rounded-[20px]"
-          />
-        </div>
+        <img
+          src="/QueueRLogo.png"
+          alt="QueueR Logo"
+          className="w-20 h-20 rounded-3xl object-cover shadow-[0_8px_30px_rgba(0,122,255,0.25)] mx-auto"
+        />
 
         <div className="space-y-1.5">
           <h2 className="text-2xl font-black tracking-tight text-text">

@@ -37,6 +37,8 @@ import {
   Smartphone,
   Share,
   PlusSquare,
+  FileText,
+  Scale,
 } from 'lucide-react';
 import { isStandalone } from '@/lib/firebase';
 import { ThemeMode } from '@/lib/theme';
@@ -1106,11 +1108,62 @@ export function SettingsSheet({
             </div>
           </section>
 
+          {/* Legal & Agreements Section */}
+          <section className="bg-surface rounded-2xl p-5 shadow-sm border border-line/30">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-blue-500/10 text-accent flex items-center justify-center font-bold">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-semibold">Legal & Policies</h3>
+                <p className="text-xs text-muted">Service agreements and non-banking disclaimers</p>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-line/20 space-y-2">
+              <Link
+                href="/terms"
+                onClick={onClose}
+                className="p-3 bg-bg hover:bg-bg/80 rounded-xl border border-line/30 flex items-center justify-between transition-all group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Scale className="w-4 h-4 text-accent" />
+                  <div>
+                    <span className="text-xs font-semibold text-text block">Terms & Conditions</span>
+                    <span className="text-[11px] text-muted block">Non-banking disclaimer, safety rules & limits</span>
+                  </div>
+                </div>
+                <span className="text-xs text-accent font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                  <span>View</span>
+                  <span>→</span>
+                </span>
+              </Link>
+            </div>
+          </section>
+
           {/* About / Info */}
-          <div className="text-center text-xs text-muted pt-4 space-y-1">
-            <p className="font-semibold text-text">QueueR v1.0.0</p>
+          <div className="text-center text-xs text-muted pt-4 space-y-1.5">
+            <div className="flex items-center justify-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/QueueRLogo.png"
+                alt="QueueR"
+                className="w-5 h-5 rounded-md object-cover shadow-2xs"
+              />
+              <p className="font-semibold text-text">QueueR v1.0.0</p>
+            </div>
             <p>Mobile-first Unified Bank & E-Wallet Payment QR Cards</p>
-            <p className="text-[11px] opacity-75">Cloudflare Pages + Firebase Offline Persistence</p>
+            <div className="flex items-center justify-center gap-3 pt-1 text-[11px]">
+              <Link
+                href="/terms"
+                onClick={onClose}
+                className="text-accent hover:underline font-semibold"
+              >
+                Terms & Conditions
+              </Link>
+              <span>·</span>
+              <span className="opacity-75">Non-Banking Utility</span>
+            </div>
           </div>
         </div>
       </div>

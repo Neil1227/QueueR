@@ -9,7 +9,7 @@ export function CardStackSkeleton() {
       <div className="sticky top-0 z-40 w-full bg-bg/95 dark:bg-bg/95 backdrop-blur-2xl border-b border-line/20 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.35)] pt-[env(safe-area-inset-top,0px)]">
         <header className="px-5 pt-3.5 pb-2 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-neutral-200/90 dark:bg-neutral-700/60 animate-pulse border border-neutral-300/30 flex-shrink-0" />
+            <div className="w-8 h-8 rounded-xl bg-neutral-200/90 dark:bg-neutral-700/60 animate-pulse flex-shrink-0" />
             <div className="flex items-baseline gap-2">
               <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-tight text-text leading-none">
                 QueueR
