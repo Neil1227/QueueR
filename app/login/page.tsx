@@ -231,13 +231,15 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-between max-w-md mx-auto px-5 py-6">
+    <div className="min-h-screen flex flex-col justify-between max-w-md mx-auto px-5 pt-[calc(env(safe-area-inset-top,0px)+16px)] pb-[calc(env(safe-area-inset-bottom,0px)+16px)]">
       {/* Top Header */}
       <header className="flex items-center justify-between pt-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-accent flex items-center justify-center text-white shadow-sm">
-            <QrCode className="w-4 h-4 stroke-[2.4]" />
-          </div>
+        <div className="flex items-center gap-2.5">
+          <img
+            src="/QueueRLogo.png"
+            alt="QueueR"
+            className="w-8 h-8 rounded-xl object-cover shadow-sm border border-line/30"
+          />
           <span className="text-sm font-bold tracking-tight text-text">QueueR</span>
         </div>
 
@@ -251,10 +253,12 @@ function LoginContent() {
       <main className="my-auto py-6 space-y-5">
         {/* Brand Logo & Title */}
         <div className="text-center space-y-2">
-          <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-accent via-blue-600 to-indigo-600 p-[1.5px] shadow-[0_8px_25px_rgba(0,122,255,0.35)] mx-auto flex items-center justify-center">
-            <div className="w-full h-full rounded-[22px] bg-white/10 backdrop-blur-xs flex items-center justify-center">
-              <QrCode className="w-8 h-8 text-white stroke-[2.2]" />
-            </div>
+          <div className="w-20 h-20 rounded-3xl overflow-hidden p-1.5 bg-surface shadow-[0_8px_30px_rgba(0,122,255,0.3)] mx-auto flex items-center justify-center border border-line/40">
+            <img
+              src="/QueueRLogo.png"
+              alt="QueueR Logo"
+              className="w-full h-full object-cover rounded-[20px]"
+            />
           </div>
 
           <div>

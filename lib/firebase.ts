@@ -475,15 +475,23 @@ export async function saveUserCard(
   const validated = CardSchema.parse(cardData);
 
   if (!db || isLocalOfflineUser(userId)) {
-    // Local offline storage fallback
+    // Local offline storage fallback: ensure plaintext fields are never lost
     const current = getCachedCards(userId);
+    const existing = current.find((c) => c.id === validated.id);
+    const cardToCache = {
+      ...validated,
+      holder: validated.holder || existing?.holder || '',
+      number: validated.number || existing?.number || '',
+      payload: validated.payload || existing?.payload || null,
+      imgB64: validated.imgB64 || existing?.imgB64 || null,
+    };
     const filtered = current.filter((c) => c.id !== validated.id);
-    if (validated.isDefault) {
+    if (cardToCache.isDefault) {
       filtered.forEach((c) => {
         c.isDefault = false;
       });
     }
-    const updated = [validated, ...filtered];
+    const updated = [cardToCache, ...filtered];
     setCachedCards(updated, userId);
     return;
   }

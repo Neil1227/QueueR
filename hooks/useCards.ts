@@ -9,6 +9,7 @@ import {
   recordCardUse,
   getUserMeta,
   saveUserMeta,
+  isLocalOfflineUser,
 } from '@/lib/firebase';
 import {
   sortCards,
@@ -443,16 +444,24 @@ export function useCards(userId?: string | null) {
       setCachedCards(updatedList, userId);
 
       if (userId) {
-        // Automatically encrypt before saving to Firestore
-        let activeKey = e2eeKeyRef.current;
-        if (!activeKey) {
-          const salt = getUserSalt(userId) || userMeta?.salt;
-          if (salt) {
-            activeKey = await deriveUserKey(userId, salt);
+        if (isLocalOfflineUser(userId)) {
+          // Local offline user: persist directly with full plaintext preserved
+          await saveUserCard(userId, plainCard, previousDefault);
+        } else {
+          // Cloud user: encrypt before saving to Firestore
+          let activeKey = e2eeKeyRef.current;
+          if (!activeKey) {
+            const salt = getUserSalt(userId) || userMeta?.salt;
+            if (salt) {
+              const savedPassphrase = typeof window !== 'undefined'
+                ? sessionStorage.getItem('qr_wallet_e2ee_passphrase') || undefined
+                : undefined;
+              activeKey = await deriveUserKey(userId, salt, savedPassphrase);
+            }
           }
+          const cardToSave = activeKey ? await encryptCardForStorage(plainCard, activeKey) : plainCard;
+          await saveUserCard(userId, cardToSave, previousDefault);
         }
-        const cardToSave = activeKey ? await encryptCardForStorage(plainCard, activeKey) : plainCard;
-        await saveUserCard(userId, cardToSave, previousDefault);
       }
     },
     [cards, userId, userMeta]

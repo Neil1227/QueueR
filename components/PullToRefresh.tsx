@@ -123,7 +123,7 @@ export function PullToRefresh({
     <div ref={containerRef} className="relative min-h-screen w-full">
       {/* Floating Refresh Status Pill */}
       <div
-        className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-200 ${
+        className={`fixed top-[calc(env(safe-area-inset-top,0px)+12px)] left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-200 ${
           pullY > 10 || isRefreshing ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
         }`}
         style={{

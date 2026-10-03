@@ -107,7 +107,7 @@ export function PinPad({
               {k.digit}
             </span>
             {k.letters ? (
-              <span className="text-[9px] font-semibold tracking-wider text-muted -mt-0.5">
+              <span className="text-[10px] font-bold tracking-wider text-neutral-600 dark:text-neutral-400 -mt-0.5">
                 {k.letters}
               </span>
             ) : null}
@@ -145,7 +145,8 @@ export function PinPad({
           disabled={disabled || pin.length === 0}
           onClick={handleDelete}
           title="Delete digit"
-          className="h-16 rounded-2xl bg-surface hover:bg-surface/80 active:scale-95 border border-line/50 flex items-center justify-center text-muted hover:text-text transition-all shadow-xs disabled:opacity-30 cursor-pointer"
+          aria-label="Delete last digit"
+          className="h-16 rounded-2xl bg-surface hover:bg-surface/80 active:scale-95 border border-line/50 flex items-center justify-center text-neutral-700 dark:text-neutral-300 hover:text-text transition-all shadow-xs disabled:opacity-30 cursor-pointer"
         >
           <Delete className="w-6 h-6" />
         </button>

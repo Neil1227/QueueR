@@ -98,84 +98,99 @@ export function CardStack({
         {announcement}
       </div>
 
-      {/* Apple Wallet Navigation Header */}
-      <header className="px-5 pt-8 pb-2 flex items-baseline justify-between sticky top-0 bg-bg/85 backdrop-blur-xl z-40 transition-colors">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-[34px] font-bold tracking-tight text-text leading-tight">
-            QueueR
-          </h1>
-          {countText && <span className="text-sm font-medium text-muted">{countText}</span>}
-        </div>
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          aria-label="Open Settings"
-          className="p-2.5 rounded-full text-muted hover:text-text hover:bg-surface active:scale-95 transition-all shadow-sm border border-line/20 cursor-pointer"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
-      </header>
-
-      {/* Category Filter Chips Bar */}
-      {cards.length > 0 && (
-        <div className="px-5 pt-1 pb-2 sticky top-[72px] bg-bg/85 backdrop-blur-xl z-30 transition-colors">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-            <button
-              type="button"
-              onClick={() => handleSelectCategory('all')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm ${selectedCategory === 'all'
-                  ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F]'
-                  : 'bg-surface text-muted hover:text-text border border-line/40'
-                }`}
-            >
-              <CategoryIcon category="all" className="w-3.5 h-3.5" />
-              <span>All</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${selectedCategory === 'all'
-                    ? 'bg-white/20 dark:bg-black/20'
-                    : 'bg-black/5 dark:bg-white/10'
-                  }`}
-              >
-                {cards.length}
-              </span>
-            </button>
-
-            {CARD_CATEGORIES.map((cat) => {
-              const count = categoryCounts[cat.id] || 0;
-              const isSelected = selectedCategory === cat.id;
-
-              // Show if has cards or if currently selected
-              if (count === 0 && !isSelected) return null;
-
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => handleSelectCategory(cat.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm ${isSelected
-                      ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F]'
-                      : 'bg-surface text-muted hover:text-text border border-line/40'
-                    }`}
-                >
-                  <CategoryIcon category={cat.id} className="w-3.5 h-3.5" />
-                  <span>{cat.shortLabel}</span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${isSelected
-                        ? 'bg-white/20 dark:bg-black/20'
-                        : 'bg-black/5 dark:bg-white/10'
-                      }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+      {/* Unified Apple Wallet Navigation Header & Category Filter Bar */}
+      <div className="sticky top-0 z-40 w-full bg-bg/95 dark:bg-bg/95 backdrop-blur-2xl border-b border-line/20 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.35)] transition-colors pt-[env(safe-area-inset-top,0px)]">
+        <header className="px-5 pt-3.5 pb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl overflow-hidden shadow-xs border border-line/30 flex-shrink-0">
+              <img src="/QueueRLogo.png" alt="QueueR" className="w-full h-full object-cover" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-tight text-text leading-none">
+                QueueR
+              </h1>
+              {countText && (
+                <span className="text-xs font-semibold text-muted tracking-wide px-2.5 py-0.5 rounded-full bg-surface/80 dark:bg-surface/60 border border-line/30 shadow-xs">
+                  {countText}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            aria-label="Open Settings"
+            className="p-2.5 rounded-full text-muted hover:text-text hover:bg-surface active:scale-95 transition-all shadow-sm border border-line/30 bg-surface/80 dark:bg-surface/50 backdrop-blur-md cursor-pointer"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        </header>
+
+        {/* Category Filter Chips Bar */}
+        {cards.length > 0 && (
+          <div className="px-5 pb-3 pt-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              <button
+                type="button"
+                onClick={() => handleSelectCategory('all')}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm ${
+                  selectedCategory === 'all'
+                    ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F]'
+                    : 'bg-surface/80 dark:bg-surface/60 text-muted hover:text-text border border-line/40 backdrop-blur-sm'
+                }`}
+              >
+                <CategoryIcon category="all" className="w-3.5 h-3.5" />
+                <span>All</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    selectedCategory === 'all'
+                      ? 'bg-white/20 dark:bg-black/20'
+                      : 'bg-black/5 dark:bg-white/10'
+                  }`}
+                >
+                  {cards.length}
+                </span>
+              </button>
+
+              {CARD_CATEGORIES.map((cat) => {
+                const count = categoryCounts[cat.id] || 0;
+                const isSelected = selectedCategory === cat.id;
+
+                // Show if has cards or if currently selected
+                if (count === 0 && !isSelected) return null;
+
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleSelectCategory(cat.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm ${
+                      isSelected
+                        ? 'bg-[#1D1D1F] dark:bg-white text-white dark:text-[#1D1D1F]'
+                        : 'bg-surface/80 dark:bg-surface/60 text-muted hover:text-text border border-line/40 backdrop-blur-sm'
+                    }`}
+                  >
+                    <CategoryIcon category={cat.id} className="w-3.5 h-3.5" />
+                    <span>{cat.shortLabel}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                        isSelected
+                          ? 'bg-white/20 dark:bg-black/20'
+                          : 'bg-black/5 dark:bg-white/10'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Card Deck Area */}
-      <main aria-label="Your payment cards deck" className="px-4 pt-3 flex-1">
+      <main aria-label="Your payment cards deck" className="px-4 pt-6 pb-28 flex-1">
         {cards.length === 0 ? (
           <div className="text-center py-24 px-6 text-muted space-y-4">
             <div className="w-20 h-20 rounded-full bg-surface border border-line/40 mx-auto flex items-center justify-center text-muted shadow-sm">
@@ -250,7 +265,7 @@ export function CardStack({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 18px rgba(0, 122, 255, 0.45)',
+            boxShadow: '0 8px 24px rgba(0, 122, 255, 0.45)',
             border: '1px solid rgba(255, 255, 255, 0.25)',
             zIndex: 30,
             cursor: 'pointer',
@@ -263,4 +278,3 @@ export function CardStack({
     </div>
   );
 }
-

@@ -5,35 +5,40 @@ import React from 'react';
 export function CardStackSkeleton() {
   return (
     <div className="min-h-screen bg-bg text-text flex flex-col w-full max-w-lg mx-auto pb-[calc(100px+env(safe-area-inset-bottom,0px))] select-none animate-fade-in">
-      {/* Skeleton Navigation Header */}
-      <header className="px-5 pt-8 pb-2 flex items-baseline justify-between">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-[34px] font-bold tracking-tight text-text leading-tight">
-            QueueR
-          </h1>
-          {/* Solid Filled Skeleton Pill for Card Count beside title */}
-          <div className="h-5 w-16 bg-neutral-200/90 dark:bg-neutral-700/60 rounded-full animate-pulse shadow-xs" />
-        </div>
-        {/* Solid Filled Skeleton Circle for Settings Button */}
-        <div className="w-10 h-10 rounded-full bg-neutral-200/70 dark:bg-neutral-700/50 border border-neutral-300/40 dark:border-neutral-600/30 animate-pulse shadow-xs" />
-      </header>
+      {/* Unified Skeleton Navigation Header & Category Bar */}
+      <div className="sticky top-0 z-40 w-full bg-bg/95 dark:bg-bg/95 backdrop-blur-2xl border-b border-line/20 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.35)] pt-[env(safe-area-inset-top,0px)]">
+        <header className="px-5 pt-3.5 pb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-neutral-200/90 dark:bg-neutral-700/60 animate-pulse border border-neutral-300/30 flex-shrink-0" />
+            <div className="flex items-baseline gap-2">
+              <h1 className="text-[28px] sm:text-[32px] font-extrabold tracking-tight text-text leading-none">
+                QueueR
+              </h1>
+              {/* Solid Filled Skeleton Pill for Card Count beside title */}
+              <div className="h-5 w-16 bg-neutral-200/90 dark:bg-neutral-700/60 rounded-full animate-pulse shadow-xs" />
+            </div>
+          </div>
+          {/* Solid Filled Skeleton Circle for Settings Button */}
+          <div className="w-10 h-10 rounded-full bg-neutral-200/70 dark:bg-neutral-700/50 border border-neutral-300/40 dark:border-neutral-600/30 animate-pulse shadow-xs" />
+        </header>
 
-      {/* Skeleton Category Chips Bar */}
-      <div className="px-5 pt-1 pb-2">
-        <div className="flex items-center gap-2 py-1 overflow-x-hidden">
-          {/* Active 'All' Chip Skeleton */}
-          <div className="h-7.5 w-16 bg-neutral-300/80 dark:bg-neutral-600/70 rounded-full animate-pulse shadow-xs" />
-          {/* Category Chip 2 Skeleton */}
-          <div className="h-7.5 w-24 bg-neutral-200/70 dark:bg-neutral-700/50 rounded-full border border-neutral-300/30 dark:border-neutral-600/30 animate-pulse shadow-xs" />
-          {/* Category Chip 3 Skeleton */}
-          <div className="h-7.5 w-22 bg-neutral-200/70 dark:bg-neutral-700/50 rounded-full border border-neutral-300/30 dark:border-neutral-600/30 animate-pulse shadow-xs" />
-          {/* Category Chip 4 Skeleton */}
-          <div className="h-7.5 w-20 bg-neutral-200/70 dark:bg-neutral-700/50 rounded-full border border-neutral-300/30 dark:border-neutral-600/30 animate-pulse shadow-xs" />
+        {/* Skeleton Category Chips Bar */}
+        <div className="px-5 pb-3 pt-1">
+          <div className="flex items-center gap-2 py-0.5 overflow-x-hidden">
+            {/* Active 'All' Chip Skeleton */}
+            <div className="h-7.5 w-16 bg-neutral-300/80 dark:bg-neutral-600/70 rounded-full animate-pulse shadow-xs" />
+            {/* Category Chip 2 Skeleton */}
+            <div className="h-7.5 w-24 bg-neutral-200/70 dark:bg-neutral-700/50 rounded-full border border-neutral-300/30 dark:border-neutral-600/30 animate-pulse shadow-xs" />
+            {/* Category Chip 3 Skeleton */}
+            <div className="h-7.5 w-22 bg-neutral-200/70 dark:bg-neutral-700/50 rounded-full border border-neutral-300/30 dark:border-neutral-600/30 animate-pulse shadow-xs" />
+            {/* Category Chip 4 Skeleton */}
+            <div className="h-7.5 w-20 bg-neutral-200/70 dark:bg-neutral-700/50 rounded-full border border-neutral-300/30 dark:border-neutral-600/30 animate-pulse shadow-xs" />
+          </div>
         </div>
       </div>
 
       {/* Stacked Cards Area with Matching Deck Geometry (56px peeking strips, rounded-[22px]) */}
-      <main className="px-4 pt-3 flex-1">
+      <main className="px-4 pt-6 flex-1">
         <div style={{ height: '322px' }} className="relative w-full">
           {/* Card 1 (Back-most peeking strip, translateY 0px) */}
           <div

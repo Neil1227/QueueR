@@ -99,18 +99,22 @@ export function AppLockModal({
       className="fixed inset-0 z-50 bg-bg/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 animate-fade-in text-center select-none"
     >
       <div className="w-full max-w-xs space-y-5">
-        {/* Lock Icon */}
-        <div className="w-16 h-16 rounded-3xl bg-accent/15 text-accent mx-auto flex items-center justify-center shadow-inner">
+        {/* Official QueueR Logo / Lock Icon */}
+        <div className="w-20 h-20 rounded-3xl overflow-hidden p-1.5 bg-surface shadow-[0_8px_30px_rgba(0,122,255,0.25)] mx-auto flex items-center justify-center border border-line/40">
           {isLockedOut ? (
-            <ShieldAlert className="w-8 h-8 text-red-500 animate-pulse" />
+            <ShieldAlert className="w-10 h-10 text-red-500 animate-pulse" />
           ) : (
-            <Lock className="w-8 h-8" />
+            <img
+              src="/QueueRLogo.png"
+              alt="QueueR Logo"
+              className="w-full h-full object-cover rounded-[20px]"
+            />
           )}
         </div>
 
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text">QueueR Locked</h2>
-          <p className="text-xs text-muted mt-1 leading-relaxed truncate px-2">
+        <div className="space-y-1.5">
+          <h2 className="text-2xl font-black tracking-tight text-text">QueueR Locked</h2>
+          <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-200 leading-snug px-2">
             {isLockedOut
               ? `Temporarily locked out due to repeated failed attempts.`
               : userEmail

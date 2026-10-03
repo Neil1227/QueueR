@@ -199,10 +199,31 @@ export function getCachedCards(userId?: string | null): Card[] {
   try {
     const key = userId ? `${LOCAL_CACHE_ALL_KEY}_${userId}` : LOCAL_CACHE_ALL_KEY;
     const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw) as Card[];
+    if (raw) {
+      const parsed = JSON.parse(raw) as Card[];
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    // Fallback: check un-scoped primary cache ONLY if userId is not provided (e.g. initial mount)
     if (!userId) {
       const fallback = localStorage.getItem(LOCAL_CACHE_ALL_KEY);
-      return fallback ? (JSON.parse(fallback) as Card[]) : [];
+      if (fallback) {
+        const parsed = JSON.parse(fallback) as Card[];
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(LOCAL_CACHE_ALL_KEY) && k !== key) {
+          const item = localStorage.getItem(k);
+          if (item) {
+            try {
+              const parsed = JSON.parse(item) as Card[];
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed;
+              }
+            } catch {}
+          }
+        }
+      }
     }
     return [];
   } catch {
@@ -214,8 +235,50 @@ export function setCachedCards(cards: Card[], userId?: string | null): void {
   if (typeof window === 'undefined') return;
   try {
     const key = userId ? `${LOCAL_CACHE_ALL_KEY}_${userId}` : LOCAL_CACHE_ALL_KEY;
-    localStorage.setItem(key, JSON.stringify(cards));
-    const def = cards.find((c) => c.isDefault) || null;
+
+    // Safety guard: Never wipe an existing populated cache during transient Fast Refresh / HMR render cycles
+    if (cards.length === 0) {
+      const existing = localStorage.getItem(key);
+      if (existing) {
+        try {
+          const parsed = JSON.parse(existing);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return; // Preserve existing cards
+          }
+        } catch {}
+      }
+    }
+
+    // Merge with existing cached cards to ensure plaintext fields (holder, number, payload)
+    // are never overwritten with blank values by incoming encrypted cloud records
+    const existingRaw = localStorage.getItem(key);
+    let cardsToSave = cards;
+    if (existingRaw) {
+      try {
+        const existingList = JSON.parse(existingRaw) as Card[];
+        if (Array.isArray(existingList) && existingList.length > 0) {
+          cardsToSave = cards.map((c) => {
+            const prev = existingList.find((ec) => ec.id === c.id);
+            if (!prev) return c;
+            return {
+              ...c,
+              holder: c.holder || prev.holder || '',
+              number: c.number || prev.number || '',
+              payload: c.payload || prev.payload || null,
+              imgB64: c.imgB64 || prev.imgB64 || null,
+            };
+          });
+        }
+      } catch {}
+    }
+
+    const serialized = JSON.stringify(cardsToSave);
+    localStorage.setItem(key, serialized);
+    if (!userId) {
+      localStorage.setItem(LOCAL_CACHE_ALL_KEY, serialized);
+    }
+
+    const def = cardsToSave.find((c) => c.isDefault) || null;
     setCachedDefaultCard(def, userId);
   } catch {
     // Ignore storage quota errors
@@ -259,18 +322,25 @@ export function clearCachedCards(userId?: string | null): void {
 export const LOCAL_USER_SALT_KEY = 'qr_wallet_salt';
 
 export function getUserSalt(userId?: string | null): string | null {
-  if (typeof window === 'undefined' || !userId) return null;
+  if (typeof window === 'undefined') return null;
   try {
-    return localStorage.getItem(`${LOCAL_USER_SALT_KEY}_${userId}`);
+    if (userId) {
+      return localStorage.getItem(`${LOCAL_USER_SALT_KEY}_${userId}`);
+    }
+    return localStorage.getItem(LOCAL_USER_SALT_KEY);
   } catch {
     return null;
   }
 }
 
 export function setUserSalt(userId: string, salt: string): void {
-  if (typeof window === 'undefined' || !userId || !salt) return;
+  if (typeof window === 'undefined' || !salt) return;
   try {
-    localStorage.setItem(`${LOCAL_USER_SALT_KEY}_${userId}`, salt);
+    if (userId) {
+      localStorage.setItem(`${LOCAL_USER_SALT_KEY}_${userId}`, salt);
+    } else {
+      localStorage.setItem(LOCAL_USER_SALT_KEY, salt);
+    }
   } catch {
     // Ignore storage errors
   }
