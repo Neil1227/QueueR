@@ -88,8 +88,13 @@ export function useCards(userId?: string | null) {
 
     const unsubscribe = subscribeToUserCards(
       userId,
-      async (newCards) => {
-        clearTimeout(safetyTimer);
+      async (newCards, fromCache = false) => {
+        // Firestore may first emit an empty local snapshot while it is still
+        // fetching the user's server data. Keep the skeleton up for that brief
+        // gap so the empty state does not flash before existing cards arrive.
+        if (newCards.length > 0 || !fromCache) {
+          clearTimeout(safetyTimer);
+        }
         let processedCards = newCards;
 
         // If we have encryption key, decrypt cards
@@ -108,7 +113,9 @@ export function useCards(userId?: string | null) {
         const sorted = sortCards(processedCards);
         setCards(sorted);
         setCachedCards(sorted, userId);
-        setLoading(false);
+        if (sorted.length > 0 || !fromCache) {
+          setLoading(false);
+        }
       },
       () => {
         clearTimeout(safetyTimer);

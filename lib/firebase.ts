@@ -405,14 +405,19 @@ export function isLocalOfflineUser(userId?: string | null): boolean {
  */
 export function subscribeToUserCards(
   userId: string,
-  onCards: (cards: Card[]) => void,
+  onCards: (cards: Card[], fromCache?: boolean) => void,
   onError?: (err: Error) => void
 ): () => void {
-  // Always emit cached cards first for instant display
+  // Always emit cached cards first for instant display if available
   const initialCards = getCachedCards(userId);
-  onCards(initialCards);
+  if (initialCards.length > 0) {
+    onCards(initialCards);
+  }
 
   if (!db || isLocalOfflineUser(userId)) {
+    if (initialCards.length === 0) {
+      onCards([]);
+    }
     return () => {};
   }
 
@@ -436,7 +441,7 @@ export function subscribeToUserCards(
 
       // Update local storage cache
       setCachedCards(cards, userId);
-      onCards(cards);
+      onCards(cards, snapshot.metadata.fromCache);
     },
     (err) => {
       console.warn('Firestore snapshot error:', err);

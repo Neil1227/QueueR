@@ -197,7 +197,7 @@ export default function HomePage() {
     return <div className="min-h-screen bg-bg" />;
   }
 
-  if (!mounted || authLoading) {
+  if (!mounted || authLoading || (cardsLoading && cards.length === 0)) {
     return <CardStackSkeleton />;
   }
 
@@ -208,7 +208,6 @@ export default function HomePage() {
         {/* Main Card Stack */}
         <CardStack
           cards={cards}
-          loading={cardsLoading}
           numberFormat={numberFormat}
           hideAddButton={isAnyOverlayActive}
           onOpenCard={handleOpenReceive}

@@ -9,7 +9,6 @@ import { Settings, Plus, CreditCard, Sparkles, FolderPlus } from 'lucide-react';
 
 interface CardStackProps {
   cards: CardType[];
-  loading?: boolean;
   numberFormat?: PreviewNumberFormat;
   hideAddButton?: boolean;
   onOpenCard: (card: CardType) => void;
@@ -19,7 +18,6 @@ interface CardStackProps {
 
 export function CardStack({
   cards,
-  loading = false,
   numberFormat = 'last4',
   hideAddButton = false,
   onOpenCard,
