@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardInput, UserMeta } from '@/lib/schema';
 import {
   subscribeToUserCards,
@@ -24,6 +24,8 @@ export function useCards(userId?: string | null) {
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [e2eeKey, setE2eeKey] = useState<CryptoKey | null>(null);
+  const e2eeKeyRef = useRef<CryptoKey | null>(e2eeKey);
+  e2eeKeyRef.current = e2eeKey;
   const [userMeta, setUserMeta] = useState<UserMeta | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
@@ -98,13 +100,14 @@ export function useCards(userId?: string | null) {
           clearTimeout(safetyTimer);
         }
         let processedCards = newCards;
+        const currentKey = e2eeKeyRef.current;
 
         // If we have encryption key, decrypt cards
-        if (e2eeKey) {
+        if (currentKey) {
           processedCards = await Promise.all(
             newCards.map(async (c) => {
               try {
-                return await decryptCardFromStorage(c, e2eeKey);
+                return await decryptCardFromStorage(c, currentKey);
               } catch {
                 return c;
               }
@@ -132,11 +135,18 @@ export function useCards(userId?: string | null) {
       clearTimeout(safetyTimer);
       unsubscribe();
     };
-  }, [userId, e2eeKey]);
+  }, [userId]);
 
   // Reactive decryption when e2eeKey is derived without resetting loading state
   useEffect(() => {
     if (!e2eeKey || cards.length === 0) return;
+    const hasUndecryptedFields = cards.some((card) =>
+      (card.holderEnc && !card.holder) ||
+      (card.numberEnc && !card.number) ||
+      (card.payloadEnc && !card.payload)
+    );
+    if (!hasUndecryptedFields) return;
+
     let isMounted = true;
     (async () => {
       const decrypted = await Promise.all(
@@ -148,14 +158,20 @@ export function useCards(userId?: string | null) {
           }
         })
       );
-      if (isMounted) {
+      const changed = decrypted.some((card, index) =>
+        card.holder !== cards[index]?.holder ||
+        card.number !== cards[index]?.number ||
+        card.payload !== cards[index]?.payload
+      );
+      if (isMounted && changed) {
         setCards(sortCards(decrypted));
+        setCachedCards(decrypted, userId);
       }
     })();
     return () => {
       isMounted = false;
     };
-  }, [e2eeKey]);
+  }, [e2eeKey, cards, userId]);
 
   // Unlock E2EE with custom passphrase
   const unlockE2EE = useCallback(
