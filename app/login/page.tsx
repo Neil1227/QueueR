@@ -8,7 +8,7 @@ import { useToast } from '@/components/Toast';
 import { GoogleIcon } from '@/components/GoogleIcon';
 import { PinSetupModal } from '@/components/PinSetupModal';
 import { hasConfiguredPin, setPin, restorePinFromCloud } from '@/lib/app-lock';
-import { getUserMeta, saveUserPin, isLocalOfflineUser } from '@/lib/firebase';
+import { getUserMeta, saveUserPin, isLocalOfflineUser, loadGsiScript } from '@/lib/firebase';
 import {
   QrCode,
   Mail,
@@ -56,6 +56,7 @@ function LoginContent() {
 
   useEffect(() => {
     setMounted(true);
+    loadGsiScript().catch(() => {});
   }, []);
 
   // If already logged in, route immediately

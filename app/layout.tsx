@@ -58,6 +58,7 @@ export default function RootLayout({
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
         <script
           dangerouslySetInnerHTML={{
             __html: `

@@ -5,6 +5,7 @@ import {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
+  signInWithCredential,
   setPersistence,
   browserLocalPersistence,
   signInWithEmailAndPassword,
@@ -155,22 +156,138 @@ export async function checkRedirectResult(): Promise<User | null> {
 
 export type SignInGoogleOptions = { forceRedirect?: boolean; preferPopup?: boolean } | boolean;
 
+const GOOGLE_CLIENT_ID =
+  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+  '13539943246-g6fmksvlqjr14vkdafm67e8l2nn4atu9.apps.googleusercontent.com';
+
+export function loadGsiScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') return resolve(false);
+    if ((window as any).google?.accounts?.oauth2) return resolve(true);
+
+    const existing = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
+    if (existing) {
+      let count = 0;
+      const interval = setInterval(() => {
+        count++;
+        if ((window as any).google?.accounts?.oauth2) {
+          clearInterval(interval);
+          resolve(true);
+        } else if (count > 25) {
+          clearInterval(interval);
+          resolve(false);
+        }
+      }, 80);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      let count = 0;
+      const interval = setInterval(() => {
+        count++;
+        if ((window as any).google?.accounts?.oauth2) {
+          clearInterval(interval);
+          resolve(true);
+        } else if (count > 25) {
+          clearInterval(interval);
+          resolve(false);
+        }
+      }, 80);
+    };
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+}
+
+export function signInWithGSI(authInstance: Auth): Promise<User> {
+  return new Promise((resolve, reject) => {
+    try {
+      const google = (window as any).google;
+      if (!google?.accounts?.oauth2) {
+        return reject(new Error('Google Identity Services not loaded'));
+      }
+
+      let settled = false;
+
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: 'openid email profile',
+        callback: async (response: any) => {
+          if (settled) return;
+          settled = true;
+          if (response.error) {
+            if (response.error === 'access_denied') {
+              return reject(new Error('Google sign-in popup was closed before completing. Please try again.'));
+            }
+            return reject(new Error(response.error_description || response.error));
+          }
+          if (!response.access_token) {
+            return reject(new Error('No access token received from Google'));
+          }
+          try {
+            const credential = GoogleAuthProvider.credential(null, response.access_token);
+            const result = await signInWithCredential(authInstance, credential);
+            resolve(result.user);
+          } catch (err: any) {
+            reject(handleAuthDomainError(err));
+          }
+        },
+        error_callback: (err: any) => {
+          if (settled) return;
+          settled = true;
+          if (err?.type === 'popup_closed') {
+            return reject(new Error('Google sign-in popup was closed before completing. Please try again.'));
+          }
+          if (err?.type === 'popup_failed_to_open') {
+            return reject(new Error('Google sign-in popup was blocked by your browser. Please allow popups for this site.'));
+          }
+          reject(new Error(err?.message || err?.type || 'Google OAuth failed'));
+        },
+      });
+
+      tokenClient.requestAccessToken({ prompt: 'select_account' });
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 export async function signInWithGoogle(options?: SignInGoogleOptions): Promise<User | null> {
   if (!auth) throw new Error('Firebase Auth is not configured');
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
 
   // Handle boolean backwards-compatibility for existing callers: signInWithGoogle(forceRedirect)
   const forceRedirect = typeof options === 'boolean' ? options : options?.forceRedirect ?? false;
   const preferPopup = typeof options === 'object' ? options?.preferPopup ?? false : false;
 
-  // Modern browsers (Chrome 115+, Safari, Firefox) enforce strict Cross-Origin Opener Policies (COOP)
-  // and partitioned cookie isolation which severs window.opener when authenticating via popups.
-  // On standard browser tabs (both desktop and mobile), signInWithRedirect is the resilient 100% reliable flow.
-  // We only attempt popup if explicitly requested or in standalone PWA mode.
-  const shouldUseRedirect = forceRedirect || (!preferPopup && !isStandalone());
+  // 1. Primary Modern Flow: Google Identity Services (GSI)
+  // GSI communicates directly with Google's OAuth services and exchanges tokens via direct HTTPS call (signInWithCredential).
+  // This bypasses Chrome third-party storage partitioning (CHIPS), Safari ITP, and COOP cross-origin opener severing.
+  if (!forceRedirect && typeof window !== 'undefined') {
+    const isGsiAvailable = (window as any).google?.accounts?.oauth2 || await loadGsiScript();
+    if (isGsiAvailable) {
+      try {
+        const user = await signInWithGSI(auth);
+        if (user) return user;
+      } catch (gsiErr: any) {
+        console.warn('GSI auth notice:', gsiErr);
+        const msg = gsiErr?.message || '';
+        if (msg.includes('closed') || gsiErr?.code === 'auth/popup-closed-by-user') {
+          throw new Error('Google sign-in popup was closed before completing. Please try again.');
+        }
+        // If GSI experienced an error other than user closing, continue to fallback flows
+      }
+    }
+  }
 
-  if (shouldUseRedirect) {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+
+  // 2. Fallback Flow: If caller requested redirect or in environments where redirect works (e.g. Edge)
+  if (forceRedirect) {
     try {
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('qr_wallet_auth_redirect_pending', 'true');
@@ -185,8 +302,7 @@ export async function signInWithGoogle(options?: SignInGoogleOptions): Promise<U
     }
   }
 
-  // Standalone PWA or callers requesting popup: Attempt popup with strict timeout fallback
-  // to prevent indefinite promise hangs caused by severed window.opener communication.
+  // 3. Fallback: Firebase popup with timeout race
   const POPUP_TIMEOUT_MS = 6000;
   let timeoutId: any;
   const timeoutPromise = new Promise<never>((_, reject) => {
